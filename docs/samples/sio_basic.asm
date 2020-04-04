@@ -1,4 +1,3 @@
-export default `
 ;==================================================================================
 ; The updates to the original BASIC within this file are copyright Grant Searle
 ;
@@ -4353,4 +4352,4 @@ OUTNCR: CALL    OUTC            ; Output character in A
         JP      PRNTCRLF        ; Output CRLF
 
 .end
-`;
+
