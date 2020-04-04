@@ -828,7 +828,7 @@ function main() {
         // This way a large re-assemble takes 40ms instead of 300ms.
         assembleAll(cm);
     });
-    fetch("samples/sio_basic.asm")
+    fetch("samples/basic.asm")
         .then(response => response.text())
         .then(text => cm.setValue(text));
 }

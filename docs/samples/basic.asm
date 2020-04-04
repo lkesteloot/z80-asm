@@ -19,11 +19,6 @@
 ; Adapted for the freeware Zilog Macro Assembler 2.10 to produce
 ; the original ROM code (checksum A934H). PA
 
-; default fill is 00
-#target bin
-
-#include "z84c40.inc"
-
 ; GENERAL EQUATES
 
 CTRLC   .EQU    03H             ; Control "C"
@@ -42,10 +37,7 @@ DEL     .EQU    7FH             ; Delete
 
 ; BASIC WORK SPACE LOCATIONS
 
-; Since the BASIC code itself needs to sit in ram starting at $4000, we
-; have to start after that point.
-AFTER_CODE .EQU 6000H
-WRKSPC  .EQU    AFTER_CODE+45H	    ; BASIC Work space
+WRKSPC  .EQU    2045H             ; BASIC Work space
 USR     .EQU    WRKSPC+3H           ; "USR (x)" jump
 OUTSUB  .EQU    WRKSPC+6H           ; "OUT p,n"
 OTPORT  .EQU    WRKSPC+7H           ; Port (p)
@@ -134,11 +126,11 @@ MO      .EQU    24H             ; Missing operand
 HX      .EQU    26H             ; HEX error
 BN      .EQU    28H             ; BIN error
 
-; Our code loads immediately above the 16K ROM page
-#code TEXT,0x4000
+        .ORG    00150H
 
-COLD:		                ; Jump for cold start
-	DI			; disable interrupts so the timer tick doesn't mess with RAM
+COLD:   JP      STARTB          ; Jump for cold start
+WARM:   JP      WARMST          ; Jump for warm start
+STARTB: 
         LD      IX,0            ; Flag cold start
         JP      CSTART          ; Jump to initialise
 
@@ -146,8 +138,7 @@ COLD:		                ; Jump for cold start
         .WORD   ABPASS          ; Return integer in AB
 
 
-CSTART:
-	LD      HL,WRKSPC       ; Start of workspace RAM
+CSTART: LD      HL,WRKSPC       ; Start of workspace RAM
         LD      SP,HL           ; Set up a temporary stack
         JP      INITST          ; Go to initialise
 
@@ -955,8 +946,10 @@ PROCES: LD      A,C             ; Get character
         JP      Z,ENDINP        ; Yes - Terminate input
         CP      CTRLU           ; Is it control "U"?
         JP      Z,KILIN         ; Yes - Get another line
-;        CP      '@'             ; Is it "kill line"?
-;        JP      Z,OTKLN         ; Yes - Kill line
+        CP      '@'             ; Is it "kill line"?
+        JP      Z,OTKLN         ; Yes - Kill line
+        CP      '_'             ; Is it delete?
+        JP      Z,DELCHR        ; Yes - Delete character
         CP      BKSP            ; Is it backspace?
         JP      Z,DELCHR        ; Yes - Delete character
         CP      CTRLR           ; Is it control "R"?
@@ -1256,10 +1249,9 @@ UPDATA: LD      (NXTDAT),HL     ; Update DATA pointer
         RET
 
 
-TSTBRK: in	a, (PORT_SIOACTL) ; Check input status
-	bit	SIORR0_IDX_RCA, a
+TSTBRK: RST     18H             ; Check input status
         RET     Z               ; No key, go back
-        CALL	GETINP          ; Get the key into A
+        RST     10H             ; Get the key into A
         CP      ESC             ; Escape key?
         JR      Z,BRK           ; Yes, break
         CP      CTRLC           ; <Ctrl-C>
@@ -1268,7 +1260,7 @@ TSTBRK: in	a, (PORT_SIOACTL) ; Check input status
         RET     NZ              ; Other key, ignore
 
 
-STALL:  CALL	GETINP          ; Wait for key
+STALL:  RST     10H             ; Wait for key
         CP      CTRLQ           ; Resume scrolling?
         RET      Z              ; Release the chokehold
         CP      CTRLC           ; Second break?
@@ -4104,15 +4096,10 @@ ATNTAB: .BYTE   9                       ; Table used by ATN
         .BYTE   000H,000H,000H,081H     ; 1/1
 
 
-GETINP:			        ; input a character
-#local
-waitRX:				; wait for an input character
-    in	    a, (PORT_SIOACTL)
-    bit	    SIORR0_IDX_RCA, a
-    jr	    z, waitRX
-    in	    a, (PORT_SIOADAT)	; read input character
-    ret
-#endlocal
+ARET:   RET                     ; A RETurn instruction
+
+GETINP: RST	    10H             ;input a character
+        RET
 
 CLS: 
         LD      A,CS            ; ASCII Clear screen
@@ -4325,19 +4312,9 @@ JJUMP1:
         LD      IX,-1           ; Flag cold start
         JP      CSTART          ; Go and initialise
 
-MONOUT:				; output a char
-#local
-    push    af
-waitTX:
-    ; wait until transmitter is idle
-    in	    a, (PORT_SIOACTL)
-    bit	    SIORR0_IDX_TBE, a
-    jr	    z, waitTX
-    pop	    af
-    ; write output character
-    out	    (PORT_SIOADAT), a	; send byte out serial port
-    ret
-#endlocal
+MONOUT: 
+        JP      $0008           ; output a char
+
 
 MONITR: 
         JP      $0000           ; Restart (Normally Monitor Start)
@@ -4347,6 +4324,15 @@ INITST: LD      A,0             ; Clear break flag
         LD      (BRKFLG),A
         JP      INIT
 
+ARETN:  RETN                    ; Return from NMI
+
+
+TSTBIT: PUSH    AF              ; Save bit mask
+        AND     B               ; Get common bits
+        POP     BC              ; Restore bit mask
+        CP      B               ; Same bit set?
+        LD      A,0             ; Return 0 in A
+        RET
 
 OUTNCR: CALL    OUTC            ; Output character in A
         JP      PRNTCRLF        ; Output CRLF
