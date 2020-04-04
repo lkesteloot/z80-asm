@@ -9,11 +9,8 @@ body {
     height: 100vh;
 }
 
-.gutter-address {
-    width: 3em;
-}
-.gutter-opcodes {
-    width: 6em;
+.gutter-assembled {
+    width: 9em;
 }
 .gutter-style {
     color: #AAA;
