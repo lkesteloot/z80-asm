@@ -2,9 +2,10 @@
 
 .gutter-address {
     width: 3em;
-    background-color: #020;
 }
 .gutter-opcodes {
     width: 6em;
-    background-color: #200;
+}
+.CodeMirror {
+    height: auto;
 }
