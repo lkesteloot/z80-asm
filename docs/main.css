@@ -1,4 +1,13 @@
 
+body {
+    margin: 0;
+    padding: 0;
+}
+
+.CodeMirror {
+    font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
+    height: 100vh;
+}
 
 .gutter-address {
     width: 3em;
@@ -6,6 +15,6 @@
 .gutter-opcodes {
     width: 6em;
 }
-.CodeMirror {
-    height: auto;
+.gutter-style {
+    color: #AAA;
 }
