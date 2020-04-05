@@ -448,10 +448,10 @@ class Parser_Parser {
                                     break;
                                 case "nn":
                                 case "dd":
-                                    this.results.binary.push(value);
+                                    this.results.binary.push(Object(dist_module["d" /* lo */])(value));
                                     break;
                                 case "offset":
-                                    this.results.binary.push(value - this.results.address - this.results.binary.length - 1);
+                                    this.results.binary.push(Object(dist_module["d" /* lo */])(value - this.results.address - this.results.binary.length - 1));
                                     break;
                                 default:
                                     throw new Error("Unknown arg type " + op);
