@@ -14,6 +14,7 @@ body {
 }
 .gutter-style {
     color: #AAA;
+    padding-left: 7px;
 }
 .error-line {
     text-decoration: #C00 wavy underline;

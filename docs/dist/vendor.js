@@ -8,10 +8,12 @@
 __webpack_require__.d(__webpack_exports__, "c", function() { return /* reexport */ isWordReg; });
 __webpack_require__.d(__webpack_exports__, "b", function() { return /* reexport */ isByteReg; });
 __webpack_require__.d(__webpack_exports__, "e", function() { return /* reexport */ toHex; });
+__webpack_require__.d(__webpack_exports__, "f", function() { return /* reexport */ toHexByte; });
+__webpack_require__.d(__webpack_exports__, "g", function() { return /* reexport */ toHexWord; });
 __webpack_require__.d(__webpack_exports__, "a", function() { return /* reexport */ hi; });
 __webpack_require__.d(__webpack_exports__, "d", function() { return /* reexport */ lo; });
 
-// UNUSED EXPORTS: RegisterSet, registerSetFields, toHexByte, toHexWord, word, inc8, inc16, dec8, dec16, add8, add16, sub8, sub16, signedByte, Flag
+// UNUSED EXPORTS: RegisterSet, registerSetFields, word, inc8, inc16, dec8, dec16, add8, add16, sub8, sub16, signedByte, Flag
 
 // CONCATENATED MODULE: ./node_modules/z80-base/dist/module/Register.js
 /**
