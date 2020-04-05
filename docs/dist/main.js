@@ -148,27 +148,26 @@
 /******/
 /******/
 /******/ 	// add entry module to deferred list
-/******/ 	deferredModules.push([3,2,1]);
+/******/ 	deferredModules.push([4,2,1]);
 /******/ 	// run deferred modules when ready
 /******/ 	return checkDeferredModules();
 /******/ })
 /************************************************************************/
-/******/ ([
-/* 0 */,
-/* 1 */,
-/* 2 */,
-/* 3 */
+/******/ ({
+
+/***/ 4:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 exports.__esModule = true;
-var Ide_1 = __webpack_require__(4);
+var Ide_1 = __webpack_require__(9);
 Ide_1.main();
 
 
 /***/ }),
-/* 4 */
+
+/***/ 9:
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -183,7 +182,7 @@ var codemirror = __webpack_require__(1);
 var codemirror_default = /*#__PURE__*/__webpack_require__.n(codemirror);
 
 // EXTERNAL MODULE: ./src/assembler/Opcodes.ts
-var Opcodes = __webpack_require__(2);
+var Opcodes = __webpack_require__(3);
 
 // EXTERNAL MODULE: ./node_modules/z80-base/dist/module/index.js + 4 modules
 var dist_module = __webpack_require__(0);
@@ -775,7 +774,23 @@ class Parser_Parser {
     }
 }
 
+// EXTERNAL MODULE: ./node_modules/codemirror/addon/dialog/dialog.js
+var dialog = __webpack_require__(2);
+
+// EXTERNAL MODULE: ./node_modules/codemirror/addon/search/search.js
+var search = __webpack_require__(5);
+
+// EXTERNAL MODULE: ./node_modules/codemirror/addon/search/jump-to-line.js
+var jump_to_line = __webpack_require__(7);
+
+// EXTERNAL MODULE: ./node_modules/codemirror/addon/edit/closebrackets.js
+var closebrackets = __webpack_require__(8);
+
 // CONCATENATED MODULE: ./src/ide/Ide.ts
+
+
+
+
 
 
 
@@ -846,6 +861,7 @@ function main() {
         tabSize: 8,
         theme: 'mbo',
         gutters: ["CodeMirror-linenumbers", "gutter-assembled"],
+        autoCloseBrackets: true,
     };
     const cm = codemirror_default()(element, config);
     // Create CSS classes for our line heights. We do this dynamically since
@@ -870,5 +886,6 @@ function main() {
 
 
 /***/ })
-/******/ ]);
+
+/******/ });
 //# sourceMappingURL=main.js.map
