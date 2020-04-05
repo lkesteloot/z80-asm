@@ -786,7 +786,11 @@ var jump_to_line = __webpack_require__(7);
 // EXTERNAL MODULE: ./node_modules/codemirror/addon/edit/closebrackets.js
 var closebrackets = __webpack_require__(8);
 
+// EXTERNAL MODULE: ./node_modules/codemirror/mode/z80/z80.js
+var z80 = __webpack_require__(10);
+
 // CONCATENATED MODULE: ./src/ide/Ide.ts
+
 
 
 
@@ -862,6 +866,7 @@ function main() {
         theme: 'mbo',
         gutters: ["CodeMirror-linenumbers", "gutter-assembled"],
         autoCloseBrackets: true,
+        mode: "text/x-z80",
     };
     const cm = codemirror_default()(element, config);
     // Create CSS classes for our line heights. We do this dynamically since
