@@ -828,7 +828,7 @@ function assembleAll(cm) {
             let numLines = 0;
             for (let offset = 0; offset < results.binary.length && numLines < MAX_SUBLINES; offset += BYTES_PER_SUBLINE, numLines++) {
                 const addressString = Object(dist_module["g" /* toHexWord */])(results.address + offset) +
-                    " " + results.binary.slice(offset, offset + BYTES_PER_SUBLINE).map(dist_module["f" /* toHexByte */]).join(" ");
+                    "  " + results.binary.slice(offset, offset + BYTES_PER_SUBLINE).map(dist_module["f" /* toHexByte */]).join(" ");
                 const addressTextElement = document.createTextNode(addressString);
                 if (offset > 0) {
                     addressElement.appendChild(document.createElement("br"));
