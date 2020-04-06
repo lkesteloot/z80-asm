@@ -153,34 +153,9 @@
 /******/ 	return checkDeferredModules();
 /******/ })
 /************************************************************************/
-/******/ ([
-/* 0 */,
-/* 1 */,
-/* 2 */,
-/* 3 */
-/***/ (function(module, exports) {
+/******/ ({
 
-module.exports = require("electron");
-
-/***/ }),
-/* 4 */,
-/* 5 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-exports.__esModule = true;
-var Ide_1 = __webpack_require__(11);
-Ide_1.main();
-
-
-/***/ }),
-/* 6 */,
-/* 7 */,
-/* 8 */,
-/* 9 */,
-/* 10 */,
-/* 11 */
+/***/ 11:
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -839,11 +814,16 @@ var external_fs_ = __webpack_require__(12);
 // EXTERNAL MODULE: external "path"
 var external_path_ = __webpack_require__(13);
 
+// EXTERNAL MODULE: ./node_modules/electron-store/index.js
+var electron_store = __webpack_require__(32);
+var electron_store_default = /*#__PURE__*/__webpack_require__.n(electron_store);
+
 // CONCATENATED MODULE: ./src/ide/Ide.ts
 
 
 
 // Load these for their side-effects (they register themselves).
+
 
 
 
@@ -858,16 +838,31 @@ const MAX_SUBLINES = 100;
 // Max number of opcode bytes we display per subline. Sync this with the CSS
 // that lays out the gutter.
 const BYTES_PER_SUBLINE = 3;
+const CURRENT_PATHNAME_KEY = "current-pathname";
 class File {
     constructor(lines) {
         this.lineNumber = 0;
         this.lines = lines;
     }
 }
+function readFile(pathname) {
+    try {
+        return external_fs_["readFileSync"](pathname, "utf-8");
+    }
+    catch (e) {
+        console.log("readFile(" + pathname + "): " + e);
+        return undefined;
+    }
+}
+function readFileLines(pathname) {
+    const text = readFile(pathname);
+    return text === undefined ? undefined : text.split(/\r?\n/);
+}
 class Ide_Ide {
     constructor(parent) {
         this.assembled = [];
         this.pathname = "";
+        this.store = new electron_store_default.a();
         const config = {
             value: "",
             lineNumbers: true,
@@ -896,16 +891,21 @@ class Ide_Ide {
             this.assembleAll();
         });
         initIpc(this);
-        /*
-        fetch("samples/basic.asm")
-            .then(response => response.text())
-            .then(text => cm.setValue(text));
-         */
         this.cm.focus();
+        // Read file from last time.
+        const pathname = this.store.get(CURRENT_PATHNAME_KEY);
+        if (pathname !== undefined) {
+            const text = readFile(pathname);
+            if (text !== undefined) {
+                this.pathname = pathname;
+                this.cm.setValue(text);
+            }
+        }
     }
     setText(pathname, text) {
         this.pathname = pathname;
         this.cm.setValue(text);
+        this.store.set(CURRENT_PATHNAME_KEY, pathname);
     }
     nextError() {
         if (this.assembled.length === 0) {
@@ -950,9 +950,15 @@ class Ide_Ide {
                 }
                 // Include file.
                 if (results.includeFilename !== undefined) {
-                    const filename = external_path_["resolve"](external_path_["dirname"](this.pathname), results.includeFilename);
-                    const includedLines = external_fs_["readFileSync"](filename, "utf-8").split(/\r?\n/);
-                    fileStack.push(new File(includedLines));
+                    const pathname = external_path_["resolve"](external_path_["dirname"](this.pathname), results.includeFilename);
+                    const includedLines = readFileLines(pathname);
+                    if (includedLines === undefined) {
+                        // TODO report error.
+                        results.error = "cannot read file " + pathname;
+                    }
+                    else {
+                        fileStack.push(new File(includedLines));
+                    }
                 }
             }
         }
@@ -1003,17 +1009,81 @@ function main() {
 
 
 /***/ }),
-/* 12 */
+
+/***/ 12:
 /***/ (function(module, exports) {
 
 module.exports = require("fs");
 
 /***/ }),
-/* 13 */
+
+/***/ 13:
 /***/ (function(module, exports) {
 
 module.exports = require("path");
 
+/***/ }),
+
+/***/ 18:
+/***/ (function(module, exports) {
+
+module.exports = require("assert");
+
+/***/ }),
+
+/***/ 19:
+/***/ (function(module, exports) {
+
+module.exports = require("events");
+
+/***/ }),
+
+/***/ 20:
+/***/ (function(module, exports) {
+
+module.exports = require("util");
+
+/***/ }),
+
+/***/ 3:
+/***/ (function(module, exports) {
+
+module.exports = require("electron");
+
+/***/ }),
+
+/***/ 35:
+/***/ (function(module, exports) {
+
+module.exports = require("crypto");
+
+/***/ }),
+
+/***/ 47:
+/***/ (function(module, exports) {
+
+module.exports = require("os");
+
+/***/ }),
+
+/***/ 5:
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+exports.__esModule = true;
+var Ide_1 = __webpack_require__(11);
+Ide_1.main();
+
+
+/***/ }),
+
+/***/ 53:
+/***/ (function(module, exports) {
+
+module.exports = require("worker_threads");
+
 /***/ })
-/******/ ]);
+
+/******/ });
 //# sourceMappingURL=main.js.map
