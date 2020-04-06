@@ -170,7 +170,7 @@ var codemirror = __webpack_require__(1);
 var codemirror_default = /*#__PURE__*/__webpack_require__.n(codemirror);
 
 // EXTERNAL MODULE: ./src/assembler/Opcodes.ts
-var Opcodes = __webpack_require__(3);
+var Opcodes = __webpack_require__(4);
 
 // EXTERNAL MODULE: ./node_modules/z80-base/dist/module/index.js + 4 modules
 var dist_module = __webpack_require__(0);
@@ -787,13 +787,13 @@ var closebrackets = __webpack_require__(9);
 var z80 = __webpack_require__(10);
 
 // EXTERNAL MODULE: external "electron"
-var external_electron_ = __webpack_require__(4);
+var external_electron_ = __webpack_require__(3);
 
 // CONCATENATED MODULE: ./src/ide/ElectronIpc.ts
 
-function initIpc(cm) {
-    console.log("Initialized IPC");
-    external_electron_["ipcRenderer"].on("set-text", (event, text) => cm.setValue(text));
+function initIpc(ide) {
+    external_electron_["ipcRenderer"].on("set-text", (event, text) => ide.setText(text));
+    external_electron_["ipcRenderer"].on("next-error", () => ide.nextError());
 }
 
 // CONCATENATED MODULE: ./src/ide/Ide.ts
@@ -813,98 +813,129 @@ const MAX_SUBLINES = 100;
 // Max number of opcode bytes we display per subline. Sync this with the CSS
 // that lays out the gutter.
 const BYTES_PER_SUBLINE = 3;
-function assembleAll(cm) {
-    const constants = {};
-    const before = Date.now();
-    // First pass.
-    let address = 0;
-    for (let i = 0; i < cm.lineCount(); i++) {
-        const line = cm.getLine(i);
-        const parser = new Parser_Parser(line, address, constants, true);
-        const results = parser.assemble();
-        address = results.nextAddress;
+class Ide_Ide {
+    constructor(parent) {
+        this.assembled = [];
+        const config = {
+            value: "",
+            lineNumbers: true,
+            tabSize: 8,
+            theme: 'mbo',
+            gutters: ["CodeMirror-linenumbers", "gutter-assembled"],
+            autoCloseBrackets: true,
+            mode: "text/x-z80",
+        };
+        this.cm = codemirror_default()(parent, config);
+        // Create CSS classes for our line heights. We do this dynamically since
+        // we don't know the line height at compile time.
+        const cssRules = [];
+        for (let lineCount = 1; lineCount < MAX_SUBLINES; lineCount++) {
+            cssRules.push(".line-height-" + lineCount + " { height: " + lineCount * this.cm.defaultTextHeight() + "px; }");
+        }
+        const style = document.createElement("style");
+        style.appendChild(document.createTextNode(cssRules.join("\n")));
+        document.head.appendChild(style);
+        this.cm.on("change", (instance, changeObj) => {
+            // It's important to call this in "change", and not in "changes" or
+            // after a timeout, because we want to be part of this operation.
+            // This way a large re-assemble takes 40ms instead of 300ms.
+            this.assembleAll();
+        });
+        initIpc(this);
+        /*
+        fetch("samples/basic.asm")
+            .then(response => response.text())
+            .then(text => cm.setValue(text));
+         */
     }
-    // Second pass.
-    address = 0;
-    for (let i = 0; i < cm.lineCount(); i++) {
-        const line = cm.getLine(i);
-        const parser = new Parser_Parser(line, address, constants, false);
-        const results = parser.assemble();
-        let addressElement;
-        if (results.binary.length > 0) {
-            addressElement = document.createElement("div");
-            // Break opcodes over multiple lines if necessary.
-            let numLines = 0;
-            for (let offset = 0; offset < results.binary.length && numLines < MAX_SUBLINES; offset += BYTES_PER_SUBLINE, numLines++) {
-                const addressString = Object(dist_module["g" /* toHexWord */])(results.address + offset) +
-                    "  " + results.binary.slice(offset, offset + BYTES_PER_SUBLINE).map(dist_module["f" /* toHexByte */]).join(" ");
-                const addressTextElement = document.createTextNode(addressString);
-                if (offset > 0) {
-                    addressElement.appendChild(document.createElement("br"));
+    setText(text) {
+        this.cm.setValue(text);
+    }
+    nextError() {
+        if (this.assembled.length === 0) {
+            return;
+        }
+        const currentLineNumber = this.cm.getCursor().line;
+        console.log(currentLineNumber);
+        let nextErrorLineNumber = currentLineNumber;
+        do {
+            nextErrorLineNumber = (nextErrorLineNumber + 1) % this.assembled.length;
+        } while (nextErrorLineNumber !== currentLineNumber && this.assembled[nextErrorLineNumber].error === undefined);
+        if (nextErrorLineNumber !== currentLineNumber) {
+            // Use the separate scrollInfoView() so we can provide a visible margin around the error.
+            this.cm.setCursor({ line: nextErrorLineNumber, ch: 0 }, undefined, { scroll: false });
+            this.cm.scrollIntoView(null, 200);
+        }
+    }
+    assembleAll() {
+        const constants = {};
+        this.assembled.splice(0, this.assembled.length);
+        const before = Date.now();
+        // First pass.
+        let address = 0;
+        for (let lineNumber = 0; lineNumber < this.cm.lineCount(); lineNumber++) {
+            const line = this.cm.getLine(lineNumber);
+            const parser = new Parser_Parser(line, address, constants, true);
+            const results = parser.assemble();
+            address = results.nextAddress;
+        }
+        // Second pass.
+        address = 0;
+        for (let lineNumber = 0; lineNumber < this.cm.lineCount(); lineNumber++) {
+            const line = this.cm.getLine(lineNumber);
+            const parser = new Parser_Parser(line, address, constants, false);
+            const results = parser.assemble();
+            this.assembled.push(results);
+            address = results.nextAddress;
+        }
+        // Update UI.
+        for (let lineNumber = 0; lineNumber < this.assembled.length; lineNumber++) {
+            const results = this.assembled[lineNumber];
+            let addressElement;
+            if (results.binary.length > 0) {
+                addressElement = document.createElement("div");
+                // Break opcodes over multiple lines if necessary.
+                let numLines = 0;
+                for (let offset = 0; offset < results.binary.length && numLines < MAX_SUBLINES; offset += BYTES_PER_SUBLINE, numLines++) {
+                    const addressString = Object(dist_module["g" /* toHexWord */])(results.address + offset) +
+                        "  " + results.binary.slice(offset, offset + BYTES_PER_SUBLINE).map(dist_module["f" /* toHexByte */]).join(" ");
+                    const addressTextElement = document.createTextNode(addressString);
+                    if (offset > 0) {
+                        addressElement.appendChild(document.createElement("br"));
+                    }
+                    addressElement.appendChild(addressTextElement);
                 }
-                addressElement.appendChild(addressTextElement);
+                addressElement.classList.add("gutter-style");
+                // For the line height using CSS.
+                this.cm.removeLineClass(lineNumber, "wrap", undefined);
+                if (numLines !== 1) {
+                    this.cm.addLineClass(lineNumber, "wrap", "line-height-" + numLines);
+                }
             }
-            addressElement.classList.add("gutter-style");
-            // For the line height using CSS.
-            cm.removeLineClass(i, "wrap", undefined);
-            if (numLines !== 1) {
-                cm.addLineClass(i, "wrap", "line-height-" + numLines);
+            else {
+                addressElement = null;
+            }
+            this.cm.setGutterMarker(lineNumber, "gutter-assembled", addressElement);
+            if (results.error === undefined) {
+                this.cm.removeLineClass(lineNumber, "text", "error-line");
+            }
+            else {
+                this.cm.addLineClass(lineNumber, "text", "error-line");
             }
         }
-        else {
-            addressElement = null;
-        }
-        cm.setGutterMarker(i, "gutter-assembled", addressElement);
-        if (results.error === undefined) {
-            cm.removeLineClass(i, "text", "error-line");
-        }
-        else {
-            cm.addLineClass(i, "text", "error-line");
-        }
-        address = results.nextAddress;
+        const after = Date.now();
+        console.log("Assembly time: " + (after - before));
     }
-    const after = Date.now();
-    console.log("Assembly time: " + (after - before));
 }
 function main() {
     const element = document.getElementById("editor");
-    const config = {
-        value: "",
-        lineNumbers: true,
-        tabSize: 8,
-        theme: 'mbo',
-        gutters: ["CodeMirror-linenumbers", "gutter-assembled"],
-        autoCloseBrackets: true,
-        mode: "text/x-z80",
-    };
-    const cm = codemirror_default()(element, config);
-    // Create CSS classes for our line heights. We do this dynamically since
-    // we don't know the line height at compile time.
-    const cssRules = [];
-    for (let lineCount = 1; lineCount < MAX_SUBLINES; lineCount++) {
-        cssRules.push(".line-height-" + lineCount + " { height: " + lineCount * cm.defaultTextHeight() + "px; }");
-    }
-    const style = document.createElement("style");
-    style.appendChild(document.createTextNode(cssRules.join("\n")));
-    document.head.appendChild(style);
-    cm.on("change", (instance, changeObj) => {
-        // It's important to call this in "change", and not in "changes" or
-        // after a timeout, because we want to be part of this operation.
-        // This way a large re-assemble takes 40ms instead of 300ms.
-        assembleAll(cm);
-    });
-    initIpc(cm);
-    /*
-    fetch("samples/basic.asm")
-        .then(response => response.text())
-        .then(text => cm.setValue(text));
-     */
+    new Ide_Ide(element);
 }
 
 
 /***/ }),
 
-/***/ 4:
+/***/ 3:
 /***/ (function(module, exports) {
 
 module.exports = require("electron");
