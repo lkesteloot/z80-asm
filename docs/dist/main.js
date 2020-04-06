@@ -824,6 +824,8 @@ class Ide_Ide {
             gutters: ["CodeMirror-linenumbers", "gutter-assembled"],
             autoCloseBrackets: true,
             mode: "text/x-z80",
+            // Doesn't work, I call focus() explicitly later.
+            autoFocus: true,
         };
         this.cm = codemirror_default()(parent, config);
         // Create CSS classes for our line heights. We do this dynamically since
@@ -847,6 +849,7 @@ class Ide_Ide {
             .then(response => response.text())
             .then(text => cm.setValue(text));
          */
+        this.cm.focus();
     }
     setText(text) {
         this.cm.setValue(text);
