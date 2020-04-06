@@ -148,26 +148,14 @@
 /******/
 /******/
 /******/ 	// add entry module to deferred list
-/******/ 	deferredModules.push([4,2,1]);
+/******/ 	deferredModules.push([5,2,1]);
 /******/ 	// run deferred modules when ready
 /******/ 	return checkDeferredModules();
 /******/ })
 /************************************************************************/
 /******/ ({
 
-/***/ 4:
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-exports.__esModule = true;
-var Ide_1 = __webpack_require__(9);
-Ide_1.main();
-
-
-/***/ }),
-
-/***/ 9:
+/***/ 11:
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -787,20 +775,32 @@ class Parser_Parser {
 var dialog = __webpack_require__(2);
 
 // EXTERNAL MODULE: ./node_modules/codemirror/addon/search/search.js
-var search = __webpack_require__(5);
+var search = __webpack_require__(6);
 
 // EXTERNAL MODULE: ./node_modules/codemirror/addon/search/jump-to-line.js
-var jump_to_line = __webpack_require__(7);
+var jump_to_line = __webpack_require__(8);
 
 // EXTERNAL MODULE: ./node_modules/codemirror/addon/edit/closebrackets.js
-var closebrackets = __webpack_require__(8);
+var closebrackets = __webpack_require__(9);
 
 // EXTERNAL MODULE: ./node_modules/codemirror/mode/z80/z80.js
 var z80 = __webpack_require__(10);
 
+// EXTERNAL MODULE: external "electron"
+var external_electron_ = __webpack_require__(4);
+
+// CONCATENATED MODULE: ./src/ide/ElectronIpc.ts
+
+function initIpc(cm) {
+    console.log("Initialized IPC");
+    external_electron_["ipcRenderer"].on("set-text", (event, text) => cm.setValue(text));
+}
+
 // CONCATENATED MODULE: ./src/ide/Ide.ts
 
 
+
+// Load these for their side-effects (they register themselves).
 
 
 
@@ -893,10 +893,32 @@ function main() {
         // This way a large re-assemble takes 40ms instead of 300ms.
         assembleAll(cm);
     });
+    initIpc(cm);
+    /*
     fetch("samples/basic.asm")
         .then(response => response.text())
         .then(text => cm.setValue(text));
+     */
 }
+
+
+/***/ }),
+
+/***/ 4:
+/***/ (function(module, exports) {
+
+module.exports = require("electron");
+
+/***/ }),
+
+/***/ 5:
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+exports.__esModule = true;
+var Ide_1 = __webpack_require__(11);
+Ide_1.main();
 
 
 /***/ })
