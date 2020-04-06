@@ -153,9 +153,34 @@
 /******/ 	return checkDeferredModules();
 /******/ })
 /************************************************************************/
-/******/ ({
+/******/ ([
+/* 0 */,
+/* 1 */,
+/* 2 */,
+/* 3 */
+/***/ (function(module, exports) {
 
-/***/ 11:
+module.exports = require("electron");
+
+/***/ }),
+/* 4 */,
+/* 5 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+exports.__esModule = true;
+var Ide_1 = __webpack_require__(11);
+Ide_1.main();
+
+
+/***/ }),
+/* 6 */,
+/* 7 */,
+/* 8 */,
+/* 9 */,
+/* 10 */,
+/* 11 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -340,6 +365,12 @@ class Parser_Parser {
             return;
         }
         switch (directive) {
+            case "target":
+                const target = this.readIdentifier(false, true);
+                // Ignore for now. Target can be "bin" or "rom", which basically mean raw
+                // binary with a different default for unspecified bytes (0x00 and 0xFF
+                // respectively), and plenty of other types we have no interest in.
+                break;
             case "code":
                 const segmentName = this.readIdentifier(true, false);
                 if (segmentName === undefined) {
@@ -352,7 +383,12 @@ class Parser_Parser {
                     }
                     else {
                         this.results.nextAddress = startAddress;
-                        // TODO parse length of segment.
+                        if (this.foundChar(',')) {
+                            const length = this.readExpression();
+                            if (length === undefined) {
+                                this.results.error = "length expected";
+                            }
+                        }
                     }
                 }
                 break;
@@ -793,9 +829,15 @@ var external_electron_ = __webpack_require__(3);
 // CONCATENATED MODULE: ./src/ide/ElectronIpc.ts
 
 function initIpc(ide) {
-    external_electron_["ipcRenderer"].on("set-text", (event, text) => ide.setText(text));
+    external_electron_["ipcRenderer"].on("set-text", (event, pathname, text) => ide.setText(pathname, text));
     external_electron_["ipcRenderer"].on("next-error", () => ide.nextError());
 }
+
+// EXTERNAL MODULE: external "fs"
+var external_fs_ = __webpack_require__(12);
+
+// EXTERNAL MODULE: external "path"
+var external_path_ = __webpack_require__(13);
 
 // CONCATENATED MODULE: ./src/ide/Ide.ts
 
@@ -808,15 +850,24 @@ function initIpc(ide) {
 
 
 
+
+
 // Max number of sub-lines per line. These are lines where we display the
 // opcodes for a single source line.
 const MAX_SUBLINES = 100;
 // Max number of opcode bytes we display per subline. Sync this with the CSS
 // that lays out the gutter.
 const BYTES_PER_SUBLINE = 3;
+class File {
+    constructor(lines) {
+        this.lineNumber = 0;
+        this.lines = lines;
+    }
+}
 class Ide_Ide {
     constructor(parent) {
         this.assembled = [];
+        this.pathname = "";
         const config = {
             value: "",
             lineNumbers: true,
@@ -852,7 +903,8 @@ class Ide_Ide {
          */
         this.cm.focus();
     }
-    setText(text) {
+    setText(pathname, text) {
+        this.pathname = pathname;
         this.cm.setValue(text);
     }
     nextError() {
@@ -875,22 +927,34 @@ class Ide_Ide {
         const constants = {};
         this.assembled.splice(0, this.assembled.length);
         const before = Date.now();
-        // First pass.
-        let address = 0;
-        for (let lineNumber = 0; lineNumber < this.cm.lineCount(); lineNumber++) {
-            const line = this.cm.getLine(lineNumber);
-            const parser = new Parser_Parser(line, address, constants, true);
-            const results = parser.assemble();
-            address = results.nextAddress;
-        }
-        // Second pass.
-        address = 0;
-        for (let lineNumber = 0; lineNumber < this.cm.lineCount(); lineNumber++) {
-            const line = this.cm.getLine(lineNumber);
-            const parser = new Parser_Parser(line, address, constants, false);
-            const results = parser.assemble();
-            this.assembled.push(results);
-            address = results.nextAddress;
+        for (let pass = 0; pass < 2; pass++) {
+            let address = 0;
+            const lines = [];
+            for (let lineNumber = 0; lineNumber < this.cm.lineCount(); lineNumber++) {
+                const line = this.cm.getLine(lineNumber);
+                lines.push(line);
+            }
+            const fileStack = [new File(lines)];
+            while (fileStack.length > 0) {
+                const top = fileStack[fileStack.length - 1];
+                if (top.lineNumber >= top.lines.length) {
+                    fileStack.pop();
+                    continue;
+                }
+                const line = top.lines[top.lineNumber++];
+                const parser = new Parser_Parser(line, address, constants, pass === 0);
+                const results = parser.assemble();
+                address = results.nextAddress;
+                if (pass === 1 && fileStack.length === 1) {
+                    this.assembled.push(results);
+                }
+                // Include file.
+                if (results.includeFilename !== undefined) {
+                    const filename = external_path_["resolve"](external_path_["dirname"](this.pathname), results.includeFilename);
+                    const includedLines = external_fs_["readFileSync"](filename, "utf-8").split(/\r?\n/);
+                    fileStack.push(new File(includedLines));
+                }
+            }
         }
         // Update UI.
         for (let lineNumber = 0; lineNumber < this.assembled.length; lineNumber++) {
@@ -924,6 +988,7 @@ class Ide_Ide {
                 this.cm.removeLineClass(lineNumber, "background", "error-line");
             }
             else {
+                console.log(results.error);
                 this.cm.addLineClass(lineNumber, "background", "error-line");
             }
         }
@@ -938,25 +1003,17 @@ function main() {
 
 
 /***/ }),
-
-/***/ 3:
+/* 12 */
 /***/ (function(module, exports) {
 
-module.exports = require("electron");
+module.exports = require("fs");
 
 /***/ }),
+/* 13 */
+/***/ (function(module, exports) {
 
-/***/ 5:
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-exports.__esModule = true;
-var Ide_1 = __webpack_require__(11);
-Ide_1.main();
-
+module.exports = require("path");
 
 /***/ })
-
-/******/ });
+/******/ ]);
 //# sourceMappingURL=main.js.map
