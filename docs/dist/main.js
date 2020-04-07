@@ -189,13 +189,13 @@ module.exports = require("util");
 "use strict";
 
 exports.__esModule = true;
-var Ide_1 = __webpack_require__(89);
+var Ide_1 = __webpack_require__(90);
 Ide_1.main();
 
 
 /***/ }),
 
-/***/ 34:
+/***/ 35:
 /***/ (function(module, exports) {
 
 module.exports = require("crypto");
@@ -209,7 +209,7 @@ module.exports = require("fs");
 
 /***/ }),
 
-/***/ 46:
+/***/ 47:
 /***/ (function(module, exports) {
 
 module.exports = require("os");
@@ -223,14 +223,14 @@ module.exports = require("electron");
 
 /***/ }),
 
-/***/ 52:
+/***/ 53:
 /***/ (function(module, exports) {
 
 module.exports = require("worker_threads");
 
 /***/ }),
 
-/***/ 89:
+/***/ 90:
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -869,8 +869,11 @@ var jump_to_line = __webpack_require__(29);
 // EXTERNAL MODULE: ./node_modules/codemirror/addon/edit/closebrackets.js
 var closebrackets = __webpack_require__(30);
 
+// EXTERNAL MODULE: ./node_modules/codemirror/addon/hint/show-hint.js
+var show_hint = __webpack_require__(31);
+
 // EXTERNAL MODULE: ./node_modules/codemirror/mode/z80/z80.js
-var z80 = __webpack_require__(31);
+var z80 = __webpack_require__(32);
 
 // EXTERNAL MODULE: external "electron"
 var external_electron_ = __webpack_require__(5);
@@ -897,6 +900,7 @@ var electron_store_default = /*#__PURE__*/__webpack_require__.n(electron_store);
 
 
 // Load these for their side-effects (they register themselves).
+
 
 
 
@@ -947,6 +951,12 @@ class Ide_Ide {
             mode: "text/x-z80",
             // Doesn't work, I call focus() explicitly later.
             autoFocus: true,
+            extraKeys: {
+            // "Ctrl-Space": "autocomplete"
+            },
+            hintOptions: {
+                hint: () => this.hint(),
+            }
         };
         this.cm = codemirror_default()(parent, config);
         // Create CSS classes for our line heights. We do this dynamically since
@@ -1074,6 +1084,17 @@ class Ide_Ide {
         }
         const after = Date.now();
         console.log("Assembly time: " + (after - before));
+    }
+    hint() {
+        const cursor = this.cm.getCursor();
+        const line = this.cm.getLine(cursor.line);
+        const start = cursor.ch;
+        const end = cursor.ch;
+        return {
+            list: ["aaaaa", "bbbbb", "ccccc"],
+            from: codemirror_default.a.Pos(cursor.line, start - 3),
+            to: codemirror_default.a.Pos(cursor.line, start),
+        };
     }
 }
 function main() {
