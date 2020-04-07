@@ -148,14 +148,89 @@
 /******/
 /******/
 /******/ 	// add entry module to deferred list
-/******/ 	deferredModules.push([5,2,1]);
+/******/ 	deferredModules.push([26,2,1]);
 /******/ 	// run deferred modules when ready
 /******/ 	return checkDeferredModules();
 /******/ })
 /************************************************************************/
 /******/ ({
 
+/***/ 1:
+/***/ (function(module, exports) {
+
+module.exports = require("path");
+
+/***/ }),
+
+/***/ 10:
+/***/ (function(module, exports) {
+
+module.exports = require("assert");
+
+/***/ }),
+
 /***/ 11:
+/***/ (function(module, exports) {
+
+module.exports = require("events");
+
+/***/ }),
+
+/***/ 12:
+/***/ (function(module, exports) {
+
+module.exports = require("util");
+
+/***/ }),
+
+/***/ 26:
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+exports.__esModule = true;
+var Ide_1 = __webpack_require__(89);
+Ide_1.main();
+
+
+/***/ }),
+
+/***/ 34:
+/***/ (function(module, exports) {
+
+module.exports = require("crypto");
+
+/***/ }),
+
+/***/ 4:
+/***/ (function(module, exports) {
+
+module.exports = require("fs");
+
+/***/ }),
+
+/***/ 46:
+/***/ (function(module, exports) {
+
+module.exports = require("os");
+
+/***/ }),
+
+/***/ 5:
+/***/ (function(module, exports) {
+
+module.exports = require("electron");
+
+/***/ }),
+
+/***/ 52:
+/***/ (function(module, exports) {
+
+module.exports = require("worker_threads");
+
+/***/ }),
+
+/***/ 89:
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -166,11 +241,11 @@ __webpack_require__.r(__webpack_exports__);
 __webpack_require__.d(__webpack_exports__, "main", function() { return /* binding */ main; });
 
 // EXTERNAL MODULE: ./node_modules/codemirror/lib/codemirror.js
-var codemirror = __webpack_require__(1);
+var codemirror = __webpack_require__(2);
 var codemirror_default = /*#__PURE__*/__webpack_require__.n(codemirror);
 
 // EXTERNAL MODULE: ./src/assembler/Opcodes.ts
-var Opcodes = __webpack_require__(4);
+var Opcodes = __webpack_require__(24);
 
 // EXTERNAL MODULE: ./node_modules/z80-base/dist/module/index.js + 4 modules
 var dist_module = __webpack_require__(0);
@@ -384,7 +459,6 @@ class Parser_Parser {
         this.ensureEndOfLine();
     }
     processOpCode(mnemonic) {
-        // TODO: I don't know why I need that any:
         const mnemonicInfo = Opcodes["a" /* default */].mnemonics[mnemonic];
         if (mnemonicInfo !== undefined) {
             const argStart = this.i;
@@ -784,22 +858,22 @@ class Parser_Parser {
 }
 
 // EXTERNAL MODULE: ./node_modules/codemirror/addon/dialog/dialog.js
-var dialog = __webpack_require__(2);
+var dialog = __webpack_require__(6);
 
 // EXTERNAL MODULE: ./node_modules/codemirror/addon/search/search.js
-var search = __webpack_require__(6);
+var search = __webpack_require__(27);
 
 // EXTERNAL MODULE: ./node_modules/codemirror/addon/search/jump-to-line.js
-var jump_to_line = __webpack_require__(8);
+var jump_to_line = __webpack_require__(29);
 
 // EXTERNAL MODULE: ./node_modules/codemirror/addon/edit/closebrackets.js
-var closebrackets = __webpack_require__(9);
+var closebrackets = __webpack_require__(30);
 
 // EXTERNAL MODULE: ./node_modules/codemirror/mode/z80/z80.js
-var z80 = __webpack_require__(10);
+var z80 = __webpack_require__(31);
 
 // EXTERNAL MODULE: external "electron"
-var external_electron_ = __webpack_require__(3);
+var external_electron_ = __webpack_require__(5);
 
 // CONCATENATED MODULE: ./src/ide/ElectronIpc.ts
 
@@ -809,13 +883,13 @@ function initIpc(ide) {
 }
 
 // EXTERNAL MODULE: external "fs"
-var external_fs_ = __webpack_require__(12);
+var external_fs_ = __webpack_require__(4);
 
 // EXTERNAL MODULE: external "path"
-var external_path_ = __webpack_require__(13);
+var external_path_ = __webpack_require__(1);
 
 // EXTERNAL MODULE: ./node_modules/electron-store/index.js
-var electron_store = __webpack_require__(32);
+var electron_store = __webpack_require__(25);
 var electron_store_default = /*#__PURE__*/__webpack_require__.n(electron_store);
 
 // CONCATENATED MODULE: ./src/ide/Ide.ts
@@ -1007,81 +1081,6 @@ function main() {
     new Ide_Ide(element);
 }
 
-
-/***/ }),
-
-/***/ 12:
-/***/ (function(module, exports) {
-
-module.exports = require("fs");
-
-/***/ }),
-
-/***/ 13:
-/***/ (function(module, exports) {
-
-module.exports = require("path");
-
-/***/ }),
-
-/***/ 18:
-/***/ (function(module, exports) {
-
-module.exports = require("assert");
-
-/***/ }),
-
-/***/ 19:
-/***/ (function(module, exports) {
-
-module.exports = require("events");
-
-/***/ }),
-
-/***/ 20:
-/***/ (function(module, exports) {
-
-module.exports = require("util");
-
-/***/ }),
-
-/***/ 3:
-/***/ (function(module, exports) {
-
-module.exports = require("electron");
-
-/***/ }),
-
-/***/ 35:
-/***/ (function(module, exports) {
-
-module.exports = require("crypto");
-
-/***/ }),
-
-/***/ 47:
-/***/ (function(module, exports) {
-
-module.exports = require("os");
-
-/***/ }),
-
-/***/ 5:
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-exports.__esModule = true;
-var Ide_1 = __webpack_require__(11);
-Ide_1.main();
-
-
-/***/ }),
-
-/***/ 53:
-/***/ (function(module, exports) {
-
-module.exports = require("worker_threads");
 
 /***/ })
 

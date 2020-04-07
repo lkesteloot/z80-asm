@@ -302,7 +302,8 @@ var Flag;
 
 
 /***/ }),
-/* 1 */
+/* 1 */,
+/* 2 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // CodeMirror, copyright (c) by Marijn Haverbeke and others
@@ -10050,1105 +10051,7 @@ var Flag;
 
 
 /***/ }),
-/* 2 */
-/***/ (function(module, exports, __webpack_require__) {
-
-// CodeMirror, copyright (c) by Marijn Haverbeke and others
-// Distributed under an MIT license: https://codemirror.net/LICENSE
-
-// Open simple dialogs on top of an editor. Relies on dialog.css.
-
-(function(mod) {
-  if (true) // CommonJS
-    mod(__webpack_require__(1));
-  else {}
-})(function(CodeMirror) {
-  function dialogDiv(cm, template, bottom) {
-    var wrap = cm.getWrapperElement();
-    var dialog;
-    dialog = wrap.appendChild(document.createElement("div"));
-    if (bottom)
-      dialog.className = "CodeMirror-dialog CodeMirror-dialog-bottom";
-    else
-      dialog.className = "CodeMirror-dialog CodeMirror-dialog-top";
-
-    if (typeof template == "string") {
-      dialog.innerHTML = template;
-    } else { // Assuming it's a detached DOM element.
-      dialog.appendChild(template);
-    }
-    CodeMirror.addClass(wrap, 'dialog-opened');
-    return dialog;
-  }
-
-  function closeNotification(cm, newVal) {
-    if (cm.state.currentNotificationClose)
-      cm.state.currentNotificationClose();
-    cm.state.currentNotificationClose = newVal;
-  }
-
-  CodeMirror.defineExtension("openDialog", function(template, callback, options) {
-    if (!options) options = {};
-
-    closeNotification(this, null);
-
-    var dialog = dialogDiv(this, template, options.bottom);
-    var closed = false, me = this;
-    function close(newVal) {
-      if (typeof newVal == 'string') {
-        inp.value = newVal;
-      } else {
-        if (closed) return;
-        closed = true;
-        CodeMirror.rmClass(dialog.parentNode, 'dialog-opened');
-        dialog.parentNode.removeChild(dialog);
-        me.focus();
-
-        if (options.onClose) options.onClose(dialog);
-      }
-    }
-
-    var inp = dialog.getElementsByTagName("input")[0], button;
-    if (inp) {
-      inp.focus();
-
-      if (options.value) {
-        inp.value = options.value;
-        if (options.selectValueOnOpen !== false) {
-          inp.select();
-        }
-      }
-
-      if (options.onInput)
-        CodeMirror.on(inp, "input", function(e) { options.onInput(e, inp.value, close);});
-      if (options.onKeyUp)
-        CodeMirror.on(inp, "keyup", function(e) {options.onKeyUp(e, inp.value, close);});
-
-      CodeMirror.on(inp, "keydown", function(e) {
-        if (options && options.onKeyDown && options.onKeyDown(e, inp.value, close)) { return; }
-        if (e.keyCode == 27 || (options.closeOnEnter !== false && e.keyCode == 13)) {
-          inp.blur();
-          CodeMirror.e_stop(e);
-          close();
-        }
-        if (e.keyCode == 13) callback(inp.value, e);
-      });
-
-      if (options.closeOnBlur !== false) CodeMirror.on(inp, "blur", close);
-    } else if (button = dialog.getElementsByTagName("button")[0]) {
-      CodeMirror.on(button, "click", function() {
-        close();
-        me.focus();
-      });
-
-      if (options.closeOnBlur !== false) CodeMirror.on(button, "blur", close);
-
-      button.focus();
-    }
-    return close;
-  });
-
-  CodeMirror.defineExtension("openConfirm", function(template, callbacks, options) {
-    closeNotification(this, null);
-    var dialog = dialogDiv(this, template, options && options.bottom);
-    var buttons = dialog.getElementsByTagName("button");
-    var closed = false, me = this, blurring = 1;
-    function close() {
-      if (closed) return;
-      closed = true;
-      CodeMirror.rmClass(dialog.parentNode, 'dialog-opened');
-      dialog.parentNode.removeChild(dialog);
-      me.focus();
-    }
-    buttons[0].focus();
-    for (var i = 0; i < buttons.length; ++i) {
-      var b = buttons[i];
-      (function(callback) {
-        CodeMirror.on(b, "click", function(e) {
-          CodeMirror.e_preventDefault(e);
-          close();
-          if (callback) callback(me);
-        });
-      })(callbacks[i]);
-      CodeMirror.on(b, "blur", function() {
-        --blurring;
-        setTimeout(function() { if (blurring <= 0) close(); }, 200);
-      });
-      CodeMirror.on(b, "focus", function() { ++blurring; });
-    }
-  });
-
-  /*
-   * openNotification
-   * Opens a notification, that can be closed with an optional timer
-   * (default 5000ms timer) and always closes on click.
-   *
-   * If a notification is opened while another is opened, it will close the
-   * currently opened one and open the new one immediately.
-   */
-  CodeMirror.defineExtension("openNotification", function(template, options) {
-    closeNotification(this, close);
-    var dialog = dialogDiv(this, template, options && options.bottom);
-    var closed = false, doneTimer;
-    var duration = options && typeof options.duration !== "undefined" ? options.duration : 5000;
-
-    function close() {
-      if (closed) return;
-      closed = true;
-      clearTimeout(doneTimer);
-      CodeMirror.rmClass(dialog.parentNode, 'dialog-opened');
-      dialog.parentNode.removeChild(dialog);
-    }
-
-    CodeMirror.on(dialog, 'click', function(e) {
-      CodeMirror.e_preventDefault(e);
-      close();
-    });
-
-    if (duration)
-      doneTimer = setTimeout(close, duration);
-
-    return close;
-  });
-});
-
-
-/***/ }),
-/* 3 */,
-/* 4 */,
-/* 5 */,
-/* 6 */
-/***/ (function(module, exports, __webpack_require__) {
-
-// CodeMirror, copyright (c) by Marijn Haverbeke and others
-// Distributed under an MIT license: https://codemirror.net/LICENSE
-
-// Define search commands. Depends on dialog.js or another
-// implementation of the openDialog method.
-
-// Replace works a little oddly -- it will do the replace on the next
-// Ctrl-G (or whatever is bound to findNext) press. You prevent a
-// replace by making sure the match is no longer selected when hitting
-// Ctrl-G.
-
-(function(mod) {
-  if (true) // CommonJS
-    mod(__webpack_require__(1), __webpack_require__(7), __webpack_require__(2));
-  else {}
-})(function(CodeMirror) {
-  "use strict";
-
-  function searchOverlay(query, caseInsensitive) {
-    if (typeof query == "string")
-      query = new RegExp(query.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&"), caseInsensitive ? "gi" : "g");
-    else if (!query.global)
-      query = new RegExp(query.source, query.ignoreCase ? "gi" : "g");
-
-    return {token: function(stream) {
-      query.lastIndex = stream.pos;
-      var match = query.exec(stream.string);
-      if (match && match.index == stream.pos) {
-        stream.pos += match[0].length || 1;
-        return "searching";
-      } else if (match) {
-        stream.pos = match.index;
-      } else {
-        stream.skipToEnd();
-      }
-    }};
-  }
-
-  function SearchState() {
-    this.posFrom = this.posTo = this.lastQuery = this.query = null;
-    this.overlay = null;
-  }
-
-  function getSearchState(cm) {
-    return cm.state.search || (cm.state.search = new SearchState());
-  }
-
-  function queryCaseInsensitive(query) {
-    return typeof query == "string" && query == query.toLowerCase();
-  }
-
-  function getSearchCursor(cm, query, pos) {
-    // Heuristic: if the query string is all lowercase, do a case insensitive search.
-    return cm.getSearchCursor(query, pos, {caseFold: queryCaseInsensitive(query), multiline: true});
-  }
-
-  function persistentDialog(cm, text, deflt, onEnter, onKeyDown) {
-    cm.openDialog(text, onEnter, {
-      value: deflt,
-      selectValueOnOpen: true,
-      closeOnEnter: false,
-      onClose: function() { clearSearch(cm); },
-      onKeyDown: onKeyDown
-    });
-  }
-
-  function dialog(cm, text, shortText, deflt, f) {
-    if (cm.openDialog) cm.openDialog(text, f, {value: deflt, selectValueOnOpen: true});
-    else f(prompt(shortText, deflt));
-  }
-
-  function confirmDialog(cm, text, shortText, fs) {
-    if (cm.openConfirm) cm.openConfirm(text, fs);
-    else if (confirm(shortText)) fs[0]();
-  }
-
-  function parseString(string) {
-    return string.replace(/\\([nrt\\])/g, function(match, ch) {
-      if (ch == "n") return "\n"
-      if (ch == "r") return "\r"
-      if (ch == "t") return "\t"
-      if (ch == "\\") return "\\"
-      return match
-    })
-  }
-
-  function parseQuery(query) {
-    var isRE = query.match(/^\/(.*)\/([a-z]*)$/);
-    if (isRE) {
-      try { query = new RegExp(isRE[1], isRE[2].indexOf("i") == -1 ? "" : "i"); }
-      catch(e) {} // Not a regular expression after all, do a string search
-    } else {
-      query = parseString(query)
-    }
-    if (typeof query == "string" ? query == "" : query.test(""))
-      query = /x^/;
-    return query;
-  }
-
-  function startSearch(cm, state, query) {
-    state.queryText = query;
-    state.query = parseQuery(query);
-    cm.removeOverlay(state.overlay, queryCaseInsensitive(state.query));
-    state.overlay = searchOverlay(state.query, queryCaseInsensitive(state.query));
-    cm.addOverlay(state.overlay);
-    if (cm.showMatchesOnScrollbar) {
-      if (state.annotate) { state.annotate.clear(); state.annotate = null; }
-      state.annotate = cm.showMatchesOnScrollbar(state.query, queryCaseInsensitive(state.query));
-    }
-  }
-
-  function doSearch(cm, rev, persistent, immediate) {
-    var state = getSearchState(cm);
-    if (state.query) return findNext(cm, rev);
-    var q = cm.getSelection() || state.lastQuery;
-    if (q instanceof RegExp && q.source == "x^") q = null
-    if (persistent && cm.openDialog) {
-      var hiding = null
-      var searchNext = function(query, event) {
-        CodeMirror.e_stop(event);
-        if (!query) return;
-        if (query != state.queryText) {
-          startSearch(cm, state, query);
-          state.posFrom = state.posTo = cm.getCursor();
-        }
-        if (hiding) hiding.style.opacity = 1
-        findNext(cm, event.shiftKey, function(_, to) {
-          var dialog
-          if (to.line < 3 && document.querySelector &&
-              (dialog = cm.display.wrapper.querySelector(".CodeMirror-dialog")) &&
-              dialog.getBoundingClientRect().bottom - 4 > cm.cursorCoords(to, "window").top)
-            (hiding = dialog).style.opacity = .4
-        })
-      };
-      persistentDialog(cm, getQueryDialog(cm), q, searchNext, function(event, query) {
-        var keyName = CodeMirror.keyName(event)
-        var extra = cm.getOption('extraKeys'), cmd = (extra && extra[keyName]) || CodeMirror.keyMap[cm.getOption("keyMap")][keyName]
-        if (cmd == "findNext" || cmd == "findPrev" ||
-          cmd == "findPersistentNext" || cmd == "findPersistentPrev") {
-          CodeMirror.e_stop(event);
-          startSearch(cm, getSearchState(cm), query);
-          cm.execCommand(cmd);
-        } else if (cmd == "find" || cmd == "findPersistent") {
-          CodeMirror.e_stop(event);
-          searchNext(query, event);
-        }
-      });
-      if (immediate && q) {
-        startSearch(cm, state, q);
-        findNext(cm, rev);
-      }
-    } else {
-      dialog(cm, getQueryDialog(cm), "Search for:", q, function(query) {
-        if (query && !state.query) cm.operation(function() {
-          startSearch(cm, state, query);
-          state.posFrom = state.posTo = cm.getCursor();
-          findNext(cm, rev);
-        });
-      });
-    }
-  }
-
-  function findNext(cm, rev, callback) {cm.operation(function() {
-    var state = getSearchState(cm);
-    var cursor = getSearchCursor(cm, state.query, rev ? state.posFrom : state.posTo);
-    if (!cursor.find(rev)) {
-      cursor = getSearchCursor(cm, state.query, rev ? CodeMirror.Pos(cm.lastLine()) : CodeMirror.Pos(cm.firstLine(), 0));
-      if (!cursor.find(rev)) return;
-    }
-    cm.setSelection(cursor.from(), cursor.to());
-    cm.scrollIntoView({from: cursor.from(), to: cursor.to()}, 20);
-    state.posFrom = cursor.from(); state.posTo = cursor.to();
-    if (callback) callback(cursor.from(), cursor.to())
-  });}
-
-  function clearSearch(cm) {cm.operation(function() {
-    var state = getSearchState(cm);
-    state.lastQuery = state.query;
-    if (!state.query) return;
-    state.query = state.queryText = null;
-    cm.removeOverlay(state.overlay);
-    if (state.annotate) { state.annotate.clear(); state.annotate = null; }
-  });}
-
-
-  function getQueryDialog(cm)  {
-    return '<span class="CodeMirror-search-label">' + cm.phrase("Search:") + '</span> <input type="text" style="width: 10em" class="CodeMirror-search-field"/> <span style="color: #888" class="CodeMirror-search-hint">' + cm.phrase("(Use /re/ syntax for regexp search)") + '</span>';
-  }
-  function getReplaceQueryDialog(cm) {
-    return ' <input type="text" style="width: 10em" class="CodeMirror-search-field"/> <span style="color: #888" class="CodeMirror-search-hint">' + cm.phrase("(Use /re/ syntax for regexp search)") + '</span>';
-  }
-  function getReplacementQueryDialog(cm) {
-    return '<span class="CodeMirror-search-label">' + cm.phrase("With:") + '</span> <input type="text" style="width: 10em" class="CodeMirror-search-field"/>';
-  }
-  function getDoReplaceConfirm(cm) {
-    return '<span class="CodeMirror-search-label">' + cm.phrase("Replace?") + '</span> <button>' + cm.phrase("Yes") + '</button> <button>' + cm.phrase("No") + '</button> <button>' + cm.phrase("All") + '</button> <button>' + cm.phrase("Stop") + '</button> ';
-  }
-
-  function replaceAll(cm, query, text) {
-    cm.operation(function() {
-      for (var cursor = getSearchCursor(cm, query); cursor.findNext();) {
-        if (typeof query != "string") {
-          var match = cm.getRange(cursor.from(), cursor.to()).match(query);
-          cursor.replace(text.replace(/\$(\d)/g, function(_, i) {return match[i];}));
-        } else cursor.replace(text);
-      }
-    });
-  }
-
-  function replace(cm, all) {
-    if (cm.getOption("readOnly")) return;
-    var query = cm.getSelection() || getSearchState(cm).lastQuery;
-    var dialogText = '<span class="CodeMirror-search-label">' + (all ? cm.phrase("Replace all:") : cm.phrase("Replace:")) + '</span>';
-    dialog(cm, dialogText + getReplaceQueryDialog(cm), dialogText, query, function(query) {
-      if (!query) return;
-      query = parseQuery(query);
-      dialog(cm, getReplacementQueryDialog(cm), cm.phrase("Replace with:"), "", function(text) {
-        text = parseString(text)
-        if (all) {
-          replaceAll(cm, query, text)
-        } else {
-          clearSearch(cm);
-          var cursor = getSearchCursor(cm, query, cm.getCursor("from"));
-          var advance = function() {
-            var start = cursor.from(), match;
-            if (!(match = cursor.findNext())) {
-              cursor = getSearchCursor(cm, query);
-              if (!(match = cursor.findNext()) ||
-                  (start && cursor.from().line == start.line && cursor.from().ch == start.ch)) return;
-            }
-            cm.setSelection(cursor.from(), cursor.to());
-            cm.scrollIntoView({from: cursor.from(), to: cursor.to()});
-            confirmDialog(cm, getDoReplaceConfirm(cm), cm.phrase("Replace?"),
-                          [function() {doReplace(match);}, advance,
-                           function() {replaceAll(cm, query, text)}]);
-          };
-          var doReplace = function(match) {
-            cursor.replace(typeof query == "string" ? text :
-                           text.replace(/\$(\d)/g, function(_, i) {return match[i];}));
-            advance();
-          };
-          advance();
-        }
-      });
-    });
-  }
-
-  CodeMirror.commands.find = function(cm) {clearSearch(cm); doSearch(cm);};
-  CodeMirror.commands.findPersistent = function(cm) {clearSearch(cm); doSearch(cm, false, true);};
-  CodeMirror.commands.findPersistentNext = function(cm) {doSearch(cm, false, true, true);};
-  CodeMirror.commands.findPersistentPrev = function(cm) {doSearch(cm, true, true, true);};
-  CodeMirror.commands.findNext = doSearch;
-  CodeMirror.commands.findPrev = function(cm) {doSearch(cm, true);};
-  CodeMirror.commands.clearSearch = clearSearch;
-  CodeMirror.commands.replace = replace;
-  CodeMirror.commands.replaceAll = function(cm) {replace(cm, true);};
-});
-
-
-/***/ }),
-/* 7 */
-/***/ (function(module, exports, __webpack_require__) {
-
-// CodeMirror, copyright (c) by Marijn Haverbeke and others
-// Distributed under an MIT license: https://codemirror.net/LICENSE
-
-(function(mod) {
-  if (true) // CommonJS
-    mod(__webpack_require__(1))
-  else {}
-})(function(CodeMirror) {
-  "use strict"
-  var Pos = CodeMirror.Pos
-
-  function regexpFlags(regexp) {
-    var flags = regexp.flags
-    return flags != null ? flags : (regexp.ignoreCase ? "i" : "")
-      + (regexp.global ? "g" : "")
-      + (regexp.multiline ? "m" : "")
-  }
-
-  function ensureFlags(regexp, flags) {
-    var current = regexpFlags(regexp), target = current
-    for (var i = 0; i < flags.length; i++) if (target.indexOf(flags.charAt(i)) == -1)
-      target += flags.charAt(i)
-    return current == target ? regexp : new RegExp(regexp.source, target)
-  }
-
-  function maybeMultiline(regexp) {
-    return /\\s|\\n|\n|\\W|\\D|\[\^/.test(regexp.source)
-  }
-
-  function searchRegexpForward(doc, regexp, start) {
-    regexp = ensureFlags(regexp, "g")
-    for (var line = start.line, ch = start.ch, last = doc.lastLine(); line <= last; line++, ch = 0) {
-      regexp.lastIndex = ch
-      var string = doc.getLine(line), match = regexp.exec(string)
-      if (match)
-        return {from: Pos(line, match.index),
-                to: Pos(line, match.index + match[0].length),
-                match: match}
-    }
-  }
-
-  function searchRegexpForwardMultiline(doc, regexp, start) {
-    if (!maybeMultiline(regexp)) return searchRegexpForward(doc, regexp, start)
-
-    regexp = ensureFlags(regexp, "gm")
-    var string, chunk = 1
-    for (var line = start.line, last = doc.lastLine(); line <= last;) {
-      // This grows the search buffer in exponentially-sized chunks
-      // between matches, so that nearby matches are fast and don't
-      // require concatenating the whole document (in case we're
-      // searching for something that has tons of matches), but at the
-      // same time, the amount of retries is limited.
-      for (var i = 0; i < chunk; i++) {
-        if (line > last) break
-        var curLine = doc.getLine(line++)
-        string = string == null ? curLine : string + "\n" + curLine
-      }
-      chunk = chunk * 2
-      regexp.lastIndex = start.ch
-      var match = regexp.exec(string)
-      if (match) {
-        var before = string.slice(0, match.index).split("\n"), inside = match[0].split("\n")
-        var startLine = start.line + before.length - 1, startCh = before[before.length - 1].length
-        return {from: Pos(startLine, startCh),
-                to: Pos(startLine + inside.length - 1,
-                        inside.length == 1 ? startCh + inside[0].length : inside[inside.length - 1].length),
-                match: match}
-      }
-    }
-  }
-
-  function lastMatchIn(string, regexp, endMargin) {
-    var match, from = 0
-    while (from <= string.length) {
-      regexp.lastIndex = from
-      var newMatch = regexp.exec(string)
-      if (!newMatch) break
-      var end = newMatch.index + newMatch[0].length
-      if (end > string.length - endMargin) break
-      if (!match || end > match.index + match[0].length)
-        match = newMatch
-      from = newMatch.index + 1
-    }
-    return match
-  }
-
-  function searchRegexpBackward(doc, regexp, start) {
-    regexp = ensureFlags(regexp, "g")
-    for (var line = start.line, ch = start.ch, first = doc.firstLine(); line >= first; line--, ch = -1) {
-      var string = doc.getLine(line)
-      var match = lastMatchIn(string, regexp, ch < 0 ? 0 : string.length - ch)
-      if (match)
-        return {from: Pos(line, match.index),
-                to: Pos(line, match.index + match[0].length),
-                match: match}
-    }
-  }
-
-  function searchRegexpBackwardMultiline(doc, regexp, start) {
-    if (!maybeMultiline(regexp)) return searchRegexpBackward(doc, regexp, start)
-    regexp = ensureFlags(regexp, "gm")
-    var string, chunkSize = 1, endMargin = doc.getLine(start.line).length - start.ch
-    for (var line = start.line, first = doc.firstLine(); line >= first;) {
-      for (var i = 0; i < chunkSize && line >= first; i++) {
-        var curLine = doc.getLine(line--)
-        string = string == null ? curLine : curLine + "\n" + string
-      }
-      chunkSize *= 2
-
-      var match = lastMatchIn(string, regexp, endMargin)
-      if (match) {
-        var before = string.slice(0, match.index).split("\n"), inside = match[0].split("\n")
-        var startLine = line + before.length, startCh = before[before.length - 1].length
-        return {from: Pos(startLine, startCh),
-                to: Pos(startLine + inside.length - 1,
-                        inside.length == 1 ? startCh + inside[0].length : inside[inside.length - 1].length),
-                match: match}
-      }
-    }
-  }
-
-  var doFold, noFold
-  if (String.prototype.normalize) {
-    doFold = function(str) { return str.normalize("NFD").toLowerCase() }
-    noFold = function(str) { return str.normalize("NFD") }
-  } else {
-    doFold = function(str) { return str.toLowerCase() }
-    noFold = function(str) { return str }
-  }
-
-  // Maps a position in a case-folded line back to a position in the original line
-  // (compensating for codepoints increasing in number during folding)
-  function adjustPos(orig, folded, pos, foldFunc) {
-    if (orig.length == folded.length) return pos
-    for (var min = 0, max = pos + Math.max(0, orig.length - folded.length);;) {
-      if (min == max) return min
-      var mid = (min + max) >> 1
-      var len = foldFunc(orig.slice(0, mid)).length
-      if (len == pos) return mid
-      else if (len > pos) max = mid
-      else min = mid + 1
-    }
-  }
-
-  function searchStringForward(doc, query, start, caseFold) {
-    // Empty string would match anything and never progress, so we
-    // define it to match nothing instead.
-    if (!query.length) return null
-    var fold = caseFold ? doFold : noFold
-    var lines = fold(query).split(/\r|\n\r?/)
-
-    search: for (var line = start.line, ch = start.ch, last = doc.lastLine() + 1 - lines.length; line <= last; line++, ch = 0) {
-      var orig = doc.getLine(line).slice(ch), string = fold(orig)
-      if (lines.length == 1) {
-        var found = string.indexOf(lines[0])
-        if (found == -1) continue search
-        var start = adjustPos(orig, string, found, fold) + ch
-        return {from: Pos(line, adjustPos(orig, string, found, fold) + ch),
-                to: Pos(line, adjustPos(orig, string, found + lines[0].length, fold) + ch)}
-      } else {
-        var cutFrom = string.length - lines[0].length
-        if (string.slice(cutFrom) != lines[0]) continue search
-        for (var i = 1; i < lines.length - 1; i++)
-          if (fold(doc.getLine(line + i)) != lines[i]) continue search
-        var end = doc.getLine(line + lines.length - 1), endString = fold(end), lastLine = lines[lines.length - 1]
-        if (endString.slice(0, lastLine.length) != lastLine) continue search
-        return {from: Pos(line, adjustPos(orig, string, cutFrom, fold) + ch),
-                to: Pos(line + lines.length - 1, adjustPos(end, endString, lastLine.length, fold))}
-      }
-    }
-  }
-
-  function searchStringBackward(doc, query, start, caseFold) {
-    if (!query.length) return null
-    var fold = caseFold ? doFold : noFold
-    var lines = fold(query).split(/\r|\n\r?/)
-
-    search: for (var line = start.line, ch = start.ch, first = doc.firstLine() - 1 + lines.length; line >= first; line--, ch = -1) {
-      var orig = doc.getLine(line)
-      if (ch > -1) orig = orig.slice(0, ch)
-      var string = fold(orig)
-      if (lines.length == 1) {
-        var found = string.lastIndexOf(lines[0])
-        if (found == -1) continue search
-        return {from: Pos(line, adjustPos(orig, string, found, fold)),
-                to: Pos(line, adjustPos(orig, string, found + lines[0].length, fold))}
-      } else {
-        var lastLine = lines[lines.length - 1]
-        if (string.slice(0, lastLine.length) != lastLine) continue search
-        for (var i = 1, start = line - lines.length + 1; i < lines.length - 1; i++)
-          if (fold(doc.getLine(start + i)) != lines[i]) continue search
-        var top = doc.getLine(line + 1 - lines.length), topString = fold(top)
-        if (topString.slice(topString.length - lines[0].length) != lines[0]) continue search
-        return {from: Pos(line + 1 - lines.length, adjustPos(top, topString, top.length - lines[0].length, fold)),
-                to: Pos(line, adjustPos(orig, string, lastLine.length, fold))}
-      }
-    }
-  }
-
-  function SearchCursor(doc, query, pos, options) {
-    this.atOccurrence = false
-    this.doc = doc
-    pos = pos ? doc.clipPos(pos) : Pos(0, 0)
-    this.pos = {from: pos, to: pos}
-
-    var caseFold
-    if (typeof options == "object") {
-      caseFold = options.caseFold
-    } else { // Backwards compat for when caseFold was the 4th argument
-      caseFold = options
-      options = null
-    }
-
-    if (typeof query == "string") {
-      if (caseFold == null) caseFold = false
-      this.matches = function(reverse, pos) {
-        return (reverse ? searchStringBackward : searchStringForward)(doc, query, pos, caseFold)
-      }
-    } else {
-      query = ensureFlags(query, "gm")
-      if (!options || options.multiline !== false)
-        this.matches = function(reverse, pos) {
-          return (reverse ? searchRegexpBackwardMultiline : searchRegexpForwardMultiline)(doc, query, pos)
-        }
-      else
-        this.matches = function(reverse, pos) {
-          return (reverse ? searchRegexpBackward : searchRegexpForward)(doc, query, pos)
-        }
-    }
-  }
-
-  SearchCursor.prototype = {
-    findNext: function() {return this.find(false)},
-    findPrevious: function() {return this.find(true)},
-
-    find: function(reverse) {
-      var result = this.matches(reverse, this.doc.clipPos(reverse ? this.pos.from : this.pos.to))
-
-      // Implements weird auto-growing behavior on null-matches for
-      // backwards-compatiblity with the vim code (unfortunately)
-      while (result && CodeMirror.cmpPos(result.from, result.to) == 0) {
-        if (reverse) {
-          if (result.from.ch) result.from = Pos(result.from.line, result.from.ch - 1)
-          else if (result.from.line == this.doc.firstLine()) result = null
-          else result = this.matches(reverse, this.doc.clipPos(Pos(result.from.line - 1)))
-        } else {
-          if (result.to.ch < this.doc.getLine(result.to.line).length) result.to = Pos(result.to.line, result.to.ch + 1)
-          else if (result.to.line == this.doc.lastLine()) result = null
-          else result = this.matches(reverse, Pos(result.to.line + 1, 0))
-        }
-      }
-
-      if (result) {
-        this.pos = result
-        this.atOccurrence = true
-        return this.pos.match || true
-      } else {
-        var end = Pos(reverse ? this.doc.firstLine() : this.doc.lastLine() + 1, 0)
-        this.pos = {from: end, to: end}
-        return this.atOccurrence = false
-      }
-    },
-
-    from: function() {if (this.atOccurrence) return this.pos.from},
-    to: function() {if (this.atOccurrence) return this.pos.to},
-
-    replace: function(newText, origin) {
-      if (!this.atOccurrence) return
-      var lines = CodeMirror.splitLines(newText)
-      this.doc.replaceRange(lines, this.pos.from, this.pos.to, origin)
-      this.pos.to = Pos(this.pos.from.line + lines.length - 1,
-                        lines[lines.length - 1].length + (lines.length == 1 ? this.pos.from.ch : 0))
-    }
-  }
-
-  CodeMirror.defineExtension("getSearchCursor", function(query, pos, caseFold) {
-    return new SearchCursor(this.doc, query, pos, caseFold)
-  })
-  CodeMirror.defineDocExtension("getSearchCursor", function(query, pos, caseFold) {
-    return new SearchCursor(this, query, pos, caseFold)
-  })
-
-  CodeMirror.defineExtension("selectMatches", function(query, caseFold) {
-    var ranges = []
-    var cur = this.getSearchCursor(query, this.getCursor("from"), caseFold)
-    while (cur.findNext()) {
-      if (CodeMirror.cmpPos(cur.to(), this.getCursor("to")) > 0) break
-      ranges.push({anchor: cur.from(), head: cur.to()})
-    }
-    if (ranges.length)
-      this.setSelections(ranges, 0)
-  })
-});
-
-
-/***/ }),
-/* 8 */
-/***/ (function(module, exports, __webpack_require__) {
-
-// CodeMirror, copyright (c) by Marijn Haverbeke and others
-// Distributed under an MIT license: https://codemirror.net/LICENSE
-
-// Defines jumpToLine command. Uses dialog.js if present.
-
-(function(mod) {
-  if (true) // CommonJS
-    mod(__webpack_require__(1), __webpack_require__(2));
-  else {}
-})(function(CodeMirror) {
-  "use strict";
-
-  function dialog(cm, text, shortText, deflt, f) {
-    if (cm.openDialog) cm.openDialog(text, f, {value: deflt, selectValueOnOpen: true});
-    else f(prompt(shortText, deflt));
-  }
-
-  function getJumpDialog(cm) {
-    return cm.phrase("Jump to line:") + ' <input type="text" style="width: 10em" class="CodeMirror-search-field"/> <span style="color: #888" class="CodeMirror-search-hint">' + cm.phrase("(Use line:column or scroll% syntax)") + '</span>';
-  }
-
-  function interpretLine(cm, string) {
-    var num = Number(string)
-    if (/^[-+]/.test(string)) return cm.getCursor().line + num
-    else return num - 1
-  }
-
-  CodeMirror.commands.jumpToLine = function(cm) {
-    var cur = cm.getCursor();
-    dialog(cm, getJumpDialog(cm), cm.phrase("Jump to line:"), (cur.line + 1) + ":" + cur.ch, function(posStr) {
-      if (!posStr) return;
-
-      var match;
-      if (match = /^\s*([\+\-]?\d+)\s*\:\s*(\d+)\s*$/.exec(posStr)) {
-        cm.setCursor(interpretLine(cm, match[1]), Number(match[2]))
-      } else if (match = /^\s*([\+\-]?\d+(\.\d+)?)\%\s*/.exec(posStr)) {
-        var line = Math.round(cm.lineCount() * Number(match[1]) / 100);
-        if (/^[-+]/.test(match[1])) line = cur.line + line + 1;
-        cm.setCursor(line - 1, cur.ch);
-      } else if (match = /^\s*\:?\s*([\+\-]?\d+)\s*/.exec(posStr)) {
-        cm.setCursor(interpretLine(cm, match[1]), cur.ch);
-      }
-    });
-  };
-
-  CodeMirror.keyMap["default"]["Alt-G"] = "jumpToLine";
-});
-
-
-/***/ }),
-/* 9 */
-/***/ (function(module, exports, __webpack_require__) {
-
-// CodeMirror, copyright (c) by Marijn Haverbeke and others
-// Distributed under an MIT license: https://codemirror.net/LICENSE
-
-(function(mod) {
-  if (true) // CommonJS
-    mod(__webpack_require__(1));
-  else {}
-})(function(CodeMirror) {
-  var defaults = {
-    pairs: "()[]{}''\"\"",
-    closeBefore: ")]}'\":;>",
-    triples: "",
-    explode: "[]{}"
-  };
-
-  var Pos = CodeMirror.Pos;
-
-  CodeMirror.defineOption("autoCloseBrackets", false, function(cm, val, old) {
-    if (old && old != CodeMirror.Init) {
-      cm.removeKeyMap(keyMap);
-      cm.state.closeBrackets = null;
-    }
-    if (val) {
-      ensureBound(getOption(val, "pairs"))
-      cm.state.closeBrackets = val;
-      cm.addKeyMap(keyMap);
-    }
-  });
-
-  function getOption(conf, name) {
-    if (name == "pairs" && typeof conf == "string") return conf;
-    if (typeof conf == "object" && conf[name] != null) return conf[name];
-    return defaults[name];
-  }
-
-  var keyMap = {Backspace: handleBackspace, Enter: handleEnter};
-  function ensureBound(chars) {
-    for (var i = 0; i < chars.length; i++) {
-      var ch = chars.charAt(i), key = "'" + ch + "'"
-      if (!keyMap[key]) keyMap[key] = handler(ch)
-    }
-  }
-  ensureBound(defaults.pairs + "`")
-
-  function handler(ch) {
-    return function(cm) { return handleChar(cm, ch); };
-  }
-
-  function getConfig(cm) {
-    var deflt = cm.state.closeBrackets;
-    if (!deflt || deflt.override) return deflt;
-    var mode = cm.getModeAt(cm.getCursor());
-    return mode.closeBrackets || deflt;
-  }
-
-  function handleBackspace(cm) {
-    var conf = getConfig(cm);
-    if (!conf || cm.getOption("disableInput")) return CodeMirror.Pass;
-
-    var pairs = getOption(conf, "pairs");
-    var ranges = cm.listSelections();
-    for (var i = 0; i < ranges.length; i++) {
-      if (!ranges[i].empty()) return CodeMirror.Pass;
-      var around = charsAround(cm, ranges[i].head);
-      if (!around || pairs.indexOf(around) % 2 != 0) return CodeMirror.Pass;
-    }
-    for (var i = ranges.length - 1; i >= 0; i--) {
-      var cur = ranges[i].head;
-      cm.replaceRange("", Pos(cur.line, cur.ch - 1), Pos(cur.line, cur.ch + 1), "+delete");
-    }
-  }
-
-  function handleEnter(cm) {
-    var conf = getConfig(cm);
-    var explode = conf && getOption(conf, "explode");
-    if (!explode || cm.getOption("disableInput")) return CodeMirror.Pass;
-
-    var ranges = cm.listSelections();
-    for (var i = 0; i < ranges.length; i++) {
-      if (!ranges[i].empty()) return CodeMirror.Pass;
-      var around = charsAround(cm, ranges[i].head);
-      if (!around || explode.indexOf(around) % 2 != 0) return CodeMirror.Pass;
-    }
-    cm.operation(function() {
-      var linesep = cm.lineSeparator() || "\n";
-      cm.replaceSelection(linesep + linesep, null);
-      cm.execCommand("goCharLeft");
-      ranges = cm.listSelections();
-      for (var i = 0; i < ranges.length; i++) {
-        var line = ranges[i].head.line;
-        cm.indentLine(line, null, true);
-        cm.indentLine(line + 1, null, true);
-      }
-    });
-  }
-
-  function contractSelection(sel) {
-    var inverted = CodeMirror.cmpPos(sel.anchor, sel.head) > 0;
-    return {anchor: new Pos(sel.anchor.line, sel.anchor.ch + (inverted ? -1 : 1)),
-            head: new Pos(sel.head.line, sel.head.ch + (inverted ? 1 : -1))};
-  }
-
-  function handleChar(cm, ch) {
-    var conf = getConfig(cm);
-    if (!conf || cm.getOption("disableInput")) return CodeMirror.Pass;
-
-    var pairs = getOption(conf, "pairs");
-    var pos = pairs.indexOf(ch);
-    if (pos == -1) return CodeMirror.Pass;
-
-    var closeBefore = getOption(conf,"closeBefore");
-
-    var triples = getOption(conf, "triples");
-
-    var identical = pairs.charAt(pos + 1) == ch;
-    var ranges = cm.listSelections();
-    var opening = pos % 2 == 0;
-
-    var type;
-    for (var i = 0; i < ranges.length; i++) {
-      var range = ranges[i], cur = range.head, curType;
-      var next = cm.getRange(cur, Pos(cur.line, cur.ch + 1));
-      if (opening && !range.empty()) {
-        curType = "surround";
-      } else if ((identical || !opening) && next == ch) {
-        if (identical && stringStartsAfter(cm, cur))
-          curType = "both";
-        else if (triples.indexOf(ch) >= 0 && cm.getRange(cur, Pos(cur.line, cur.ch + 3)) == ch + ch + ch)
-          curType = "skipThree";
-        else
-          curType = "skip";
-      } else if (identical && cur.ch > 1 && triples.indexOf(ch) >= 0 &&
-                 cm.getRange(Pos(cur.line, cur.ch - 2), cur) == ch + ch) {
-        if (cur.ch > 2 && /\bstring/.test(cm.getTokenTypeAt(Pos(cur.line, cur.ch - 2)))) return CodeMirror.Pass;
-        curType = "addFour";
-      } else if (identical) {
-        var prev = cur.ch == 0 ? " " : cm.getRange(Pos(cur.line, cur.ch - 1), cur)
-        if (!CodeMirror.isWordChar(next) && prev != ch && !CodeMirror.isWordChar(prev)) curType = "both";
-        else return CodeMirror.Pass;
-      } else if (opening && (next.length === 0 || /\s/.test(next) || closeBefore.indexOf(next) > -1)) {
-        curType = "both";
-      } else {
-        return CodeMirror.Pass;
-      }
-      if (!type) type = curType;
-      else if (type != curType) return CodeMirror.Pass;
-    }
-
-    var left = pos % 2 ? pairs.charAt(pos - 1) : ch;
-    var right = pos % 2 ? ch : pairs.charAt(pos + 1);
-    cm.operation(function() {
-      if (type == "skip") {
-        cm.execCommand("goCharRight");
-      } else if (type == "skipThree") {
-        for (var i = 0; i < 3; i++)
-          cm.execCommand("goCharRight");
-      } else if (type == "surround") {
-        var sels = cm.getSelections();
-        for (var i = 0; i < sels.length; i++)
-          sels[i] = left + sels[i] + right;
-        cm.replaceSelections(sels, "around");
-        sels = cm.listSelections().slice();
-        for (var i = 0; i < sels.length; i++)
-          sels[i] = contractSelection(sels[i]);
-        cm.setSelections(sels);
-      } else if (type == "both") {
-        cm.replaceSelection(left + right, null);
-        cm.triggerElectric(left + right);
-        cm.execCommand("goCharLeft");
-      } else if (type == "addFour") {
-        cm.replaceSelection(left + left + left + left, "before");
-        cm.execCommand("goCharRight");
-      }
-    });
-  }
-
-  function charsAround(cm, pos) {
-    var str = cm.getRange(Pos(pos.line, pos.ch - 1),
-                          Pos(pos.line, pos.ch + 1));
-    return str.length == 2 ? str : null;
-  }
-
-  function stringStartsAfter(cm, pos) {
-    var token = cm.getTokenAt(Pos(pos.line, pos.ch + 1))
-    return /\bstring/.test(token.type) && token.start == pos.ch &&
-      (pos.ch == 0 || !/\bstring/.test(cm.getTokenTypeAt(pos)))
-  }
-});
-
-
-/***/ }),
-/* 10 */
-/***/ (function(module, exports, __webpack_require__) {
-
-// CodeMirror, copyright (c) by Marijn Haverbeke and others
-// Distributed under an MIT license: https://codemirror.net/LICENSE
-
-(function(mod) {
-  if (true) // CommonJS
-  mod(__webpack_require__(1));
-  else {}
-})(function(CodeMirror) {
-"use strict";
-
-CodeMirror.defineMode('z80', function(_config, parserConfig) {
-  var ez80 = parserConfig.ez80;
-  var keywords1, keywords2;
-  if (ez80) {
-    keywords1 = /^(exx?|(ld|cp)([di]r?)?|[lp]ea|pop|push|ad[cd]|cpl|daa|dec|inc|neg|sbc|sub|and|bit|[cs]cf|x?or|res|set|r[lr]c?a?|r[lr]d|s[lr]a|srl|djnz|nop|[de]i|halt|im|in([di]mr?|ir?|irx|2r?)|ot(dmr?|[id]rx|imr?)|out(0?|[di]r?|[di]2r?)|tst(io)?|slp)(\.([sl]?i)?[sl])?\b/i;
-    keywords2 = /^(((call|j[pr]|rst|ret[in]?)(\.([sl]?i)?[sl])?)|(rs|st)mix)\b/i;
-  } else {
-    keywords1 = /^(exx?|(ld|cp|in)([di]r?)?|pop|push|ad[cd]|cpl|daa|dec|inc|neg|sbc|sub|and|bit|[cs]cf|x?or|res|set|r[lr]c?a?|r[lr]d|s[lr]a|srl|djnz|nop|rst|[de]i|halt|im|ot[di]r|out[di]?)\b/i;
-    keywords2 = /^(call|j[pr]|ret[in]?|b_?(call|jump))\b/i;
-  }
-
-  var variables1 = /^(af?|bc?|c|de?|e|hl?|l|i[xy]?|r|sp)\b/i;
-  var variables2 = /^(n?[zc]|p[oe]?|m)\b/i;
-  var errors = /^([hl][xy]|i[xy][hl]|slia|sll)\b/i;
-  var numbers = /^([\da-f]+h|[0-7]+o|[01]+b|\d+d?)\b/i;
-
-  return {
-    startState: function() {
-      return {
-        context: 0
-      };
-    },
-    token: function(stream, state) {
-      if (!stream.column())
-        state.context = 0;
-
-      if (stream.eatSpace())
-        return null;
-
-      var w;
-
-      if (stream.eatWhile(/\w/)) {
-        if (ez80 && stream.eat('.')) {
-          stream.eatWhile(/\w/);
-        }
-        w = stream.current();
-
-        if (stream.indentation()) {
-          if ((state.context == 1 || state.context == 4) && variables1.test(w)) {
-            state.context = 4;
-            return 'var2';
-          }
-
-          if (state.context == 2 && variables2.test(w)) {
-            state.context = 4;
-            return 'var3';
-          }
-
-          if (keywords1.test(w)) {
-            state.context = 1;
-            return 'keyword';
-          } else if (keywords2.test(w)) {
-            state.context = 2;
-            return 'keyword';
-          } else if (state.context == 4 && numbers.test(w)) {
-            return 'number';
-          }
-
-          if (errors.test(w))
-            return 'error';
-        } else if (stream.match(numbers)) {
-          return 'number';
-        } else {
-          return null;
-        }
-      } else if (stream.eat(';')) {
-        stream.skipToEnd();
-        return 'comment';
-      } else if (stream.eat('"')) {
-        while (w = stream.next()) {
-          if (w == '"')
-            break;
-
-          if (w == '\\')
-            stream.next();
-        }
-        return 'string';
-      } else if (stream.eat('\'')) {
-        if (stream.match(/\\?.'/))
-          return 'number';
-      } else if (stream.eat('.') || stream.sol() && stream.eat('#')) {
-        state.context = 5;
-
-        if (stream.eatWhile(/\w/))
-          return 'def';
-      } else if (stream.eat('$')) {
-        if (stream.eatWhile(/[\da-f]/i))
-          return 'number';
-      } else if (stream.eat('%')) {
-        if (stream.eatWhile(/[01]/))
-          return 'number';
-      } else {
-        stream.next();
-      }
-      return null;
-    }
-  };
-});
-
-CodeMirror.defineMIME("text/x-z80", "z80");
-CodeMirror.defineMIME("text/x-ez80", { name: "z80", ez80: true });
-
-});
-
-
-/***/ }),
-/* 11 */,
-/* 12 */,
-/* 13 */,
-/* 14 */
+/* 3 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -11163,8 +10066,8 @@ module.exports = {
   toHash: toHash,
   getProperty: getProperty,
   escapeQuotes: escapeQuotes,
-  equal: __webpack_require__(16),
-  ucs2length: __webpack_require__(57),
+  equal: __webpack_require__(8),
+  ucs2length: __webpack_require__(56),
   varOccurences: varOccurences,
   varReplace: varReplace,
   cleanUpCode: cleanUpCode,
@@ -11429,17 +10332,183 @@ function unescapeJsonPointer(str) {
 
 
 /***/ }),
-/* 15 */
+/* 4 */,
+/* 5 */,
+/* 6 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// CodeMirror, copyright (c) by Marijn Haverbeke and others
+// Distributed under an MIT license: https://codemirror.net/LICENSE
+
+// Open simple dialogs on top of an editor. Relies on dialog.css.
+
+(function(mod) {
+  if (true) // CommonJS
+    mod(__webpack_require__(2));
+  else {}
+})(function(CodeMirror) {
+  function dialogDiv(cm, template, bottom) {
+    var wrap = cm.getWrapperElement();
+    var dialog;
+    dialog = wrap.appendChild(document.createElement("div"));
+    if (bottom)
+      dialog.className = "CodeMirror-dialog CodeMirror-dialog-bottom";
+    else
+      dialog.className = "CodeMirror-dialog CodeMirror-dialog-top";
+
+    if (typeof template == "string") {
+      dialog.innerHTML = template;
+    } else { // Assuming it's a detached DOM element.
+      dialog.appendChild(template);
+    }
+    CodeMirror.addClass(wrap, 'dialog-opened');
+    return dialog;
+  }
+
+  function closeNotification(cm, newVal) {
+    if (cm.state.currentNotificationClose)
+      cm.state.currentNotificationClose();
+    cm.state.currentNotificationClose = newVal;
+  }
+
+  CodeMirror.defineExtension("openDialog", function(template, callback, options) {
+    if (!options) options = {};
+
+    closeNotification(this, null);
+
+    var dialog = dialogDiv(this, template, options.bottom);
+    var closed = false, me = this;
+    function close(newVal) {
+      if (typeof newVal == 'string') {
+        inp.value = newVal;
+      } else {
+        if (closed) return;
+        closed = true;
+        CodeMirror.rmClass(dialog.parentNode, 'dialog-opened');
+        dialog.parentNode.removeChild(dialog);
+        me.focus();
+
+        if (options.onClose) options.onClose(dialog);
+      }
+    }
+
+    var inp = dialog.getElementsByTagName("input")[0], button;
+    if (inp) {
+      inp.focus();
+
+      if (options.value) {
+        inp.value = options.value;
+        if (options.selectValueOnOpen !== false) {
+          inp.select();
+        }
+      }
+
+      if (options.onInput)
+        CodeMirror.on(inp, "input", function(e) { options.onInput(e, inp.value, close);});
+      if (options.onKeyUp)
+        CodeMirror.on(inp, "keyup", function(e) {options.onKeyUp(e, inp.value, close);});
+
+      CodeMirror.on(inp, "keydown", function(e) {
+        if (options && options.onKeyDown && options.onKeyDown(e, inp.value, close)) { return; }
+        if (e.keyCode == 27 || (options.closeOnEnter !== false && e.keyCode == 13)) {
+          inp.blur();
+          CodeMirror.e_stop(e);
+          close();
+        }
+        if (e.keyCode == 13) callback(inp.value, e);
+      });
+
+      if (options.closeOnBlur !== false) CodeMirror.on(inp, "blur", close);
+    } else if (button = dialog.getElementsByTagName("button")[0]) {
+      CodeMirror.on(button, "click", function() {
+        close();
+        me.focus();
+      });
+
+      if (options.closeOnBlur !== false) CodeMirror.on(button, "blur", close);
+
+      button.focus();
+    }
+    return close;
+  });
+
+  CodeMirror.defineExtension("openConfirm", function(template, callbacks, options) {
+    closeNotification(this, null);
+    var dialog = dialogDiv(this, template, options && options.bottom);
+    var buttons = dialog.getElementsByTagName("button");
+    var closed = false, me = this, blurring = 1;
+    function close() {
+      if (closed) return;
+      closed = true;
+      CodeMirror.rmClass(dialog.parentNode, 'dialog-opened');
+      dialog.parentNode.removeChild(dialog);
+      me.focus();
+    }
+    buttons[0].focus();
+    for (var i = 0; i < buttons.length; ++i) {
+      var b = buttons[i];
+      (function(callback) {
+        CodeMirror.on(b, "click", function(e) {
+          CodeMirror.e_preventDefault(e);
+          close();
+          if (callback) callback(me);
+        });
+      })(callbacks[i]);
+      CodeMirror.on(b, "blur", function() {
+        --blurring;
+        setTimeout(function() { if (blurring <= 0) close(); }, 200);
+      });
+      CodeMirror.on(b, "focus", function() { ++blurring; });
+    }
+  });
+
+  /*
+   * openNotification
+   * Opens a notification, that can be closed with an optional timer
+   * (default 5000ms timer) and always closes on click.
+   *
+   * If a notification is opened while another is opened, it will close the
+   * currently opened one and open the new one immediately.
+   */
+  CodeMirror.defineExtension("openNotification", function(template, options) {
+    closeNotification(this, close);
+    var dialog = dialogDiv(this, template, options && options.bottom);
+    var closed = false, doneTimer;
+    var duration = options && typeof options.duration !== "undefined" ? options.duration : 5000;
+
+    function close() {
+      if (closed) return;
+      closed = true;
+      clearTimeout(doneTimer);
+      CodeMirror.rmClass(dialog.parentNode, 'dialog-opened');
+      dialog.parentNode.removeChild(dialog);
+    }
+
+    CodeMirror.on(dialog, 'click', function(e) {
+      CodeMirror.e_preventDefault(e);
+      close();
+    });
+
+    if (duration)
+      doneTimer = setTimeout(close, duration);
+
+    return close;
+  });
+});
+
+
+/***/ }),
+/* 7 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var URI = __webpack_require__(56)
-  , equal = __webpack_require__(16)
-  , util = __webpack_require__(14)
-  , SchemaObject = __webpack_require__(23)
-  , traverse = __webpack_require__(58);
+var URI = __webpack_require__(55)
+  , equal = __webpack_require__(8)
+  , util = __webpack_require__(3)
+  , SchemaObject = __webpack_require__(15)
+  , traverse = __webpack_require__(57);
 
 module.exports = resolve;
 
@@ -11706,7 +10775,7 @@ function resolveIds(schema) {
 
 
 /***/ }),
-/* 16 */
+/* 8 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -11759,13 +10828,13 @@ module.exports = function equal(a, b) {
 
 
 /***/ }),
-/* 17 */
+/* 9 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var resolve = __webpack_require__(15);
+var resolve = __webpack_require__(7);
 
 module.exports = {
   Validation: errorSubclass(ValidationError),
@@ -11800,10 +10869,10 @@ function errorSubclass(Subclass) {
 
 
 /***/ }),
-/* 18 */,
-/* 19 */,
-/* 20 */,
-/* 21 */
+/* 10 */,
+/* 11 */,
+/* 12 */,
+/* 13 */
 /***/ (function(module, exports) {
 
 exports = module.exports = SemVer
@@ -13405,7 +12474,7 @@ function coerce (version, options) {
 
 
 /***/ }),
-/* 22 */
+/* 14 */
 /***/ (function(module, exports) {
 
 module.exports      = isTypedArray
@@ -13452,13 +12521,13 @@ function isLooseTypedArray(arr) {
 
 
 /***/ }),
-/* 23 */
+/* 15 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var util = __webpack_require__(14);
+var util = __webpack_require__(3);
 
 module.exports = SchemaObject;
 
@@ -13468,7 +12537,7 @@ function SchemaObject(obj) {
 
 
 /***/ }),
-/* 24 */
+/* 16 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -13534,7 +12603,7 @@ module.exports = function (data, opts) {
 
 
 /***/ }),
-/* 25 */
+/* 17 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -14035,7 +13104,7 @@ module.exports = function generate_validate(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 26 */
+/* 18 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -14199,7 +13268,7 @@ module.exports = function generate__limit(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 27 */
+/* 19 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -14283,7 +13352,7 @@ module.exports = function generate__limitItems(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 28 */
+/* 20 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -14372,7 +13441,7 @@ module.exports = function generate__limitLength(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 29 */
+/* 21 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -14456,13 +13525,13 @@ module.exports = function generate__limitProperties(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 30 */
+/* 22 */
 /***/ (function(module) {
 
 module.exports = JSON.parse("{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"$id\":\"http://json-schema.org/draft-07/schema#\",\"title\":\"Core schema meta-schema\",\"definitions\":{\"schemaArray\":{\"type\":\"array\",\"minItems\":1,\"items\":{\"$ref\":\"#\"}},\"nonNegativeInteger\":{\"type\":\"integer\",\"minimum\":0},\"nonNegativeIntegerDefault0\":{\"allOf\":[{\"$ref\":\"#/definitions/nonNegativeInteger\"},{\"default\":0}]},\"simpleTypes\":{\"enum\":[\"array\",\"boolean\",\"integer\",\"null\",\"number\",\"object\",\"string\"]},\"stringArray\":{\"type\":\"array\",\"items\":{\"type\":\"string\"},\"uniqueItems\":true,\"default\":[]}},\"type\":[\"object\",\"boolean\"],\"properties\":{\"$id\":{\"type\":\"string\",\"format\":\"uri-reference\"},\"$schema\":{\"type\":\"string\",\"format\":\"uri\"},\"$ref\":{\"type\":\"string\",\"format\":\"uri-reference\"},\"$comment\":{\"type\":\"string\"},\"title\":{\"type\":\"string\"},\"description\":{\"type\":\"string\"},\"default\":true,\"readOnly\":{\"type\":\"boolean\",\"default\":false},\"examples\":{\"type\":\"array\",\"items\":true},\"multipleOf\":{\"type\":\"number\",\"exclusiveMinimum\":0},\"maximum\":{\"type\":\"number\"},\"exclusiveMaximum\":{\"type\":\"number\"},\"minimum\":{\"type\":\"number\"},\"exclusiveMinimum\":{\"type\":\"number\"},\"maxLength\":{\"$ref\":\"#/definitions/nonNegativeInteger\"},\"minLength\":{\"$ref\":\"#/definitions/nonNegativeIntegerDefault0\"},\"pattern\":{\"type\":\"string\",\"format\":\"regex\"},\"additionalItems\":{\"$ref\":\"#\"},\"items\":{\"anyOf\":[{\"$ref\":\"#\"},{\"$ref\":\"#/definitions/schemaArray\"}],\"default\":true},\"maxItems\":{\"$ref\":\"#/definitions/nonNegativeInteger\"},\"minItems\":{\"$ref\":\"#/definitions/nonNegativeIntegerDefault0\"},\"uniqueItems\":{\"type\":\"boolean\",\"default\":false},\"contains\":{\"$ref\":\"#\"},\"maxProperties\":{\"$ref\":\"#/definitions/nonNegativeInteger\"},\"minProperties\":{\"$ref\":\"#/definitions/nonNegativeIntegerDefault0\"},\"required\":{\"$ref\":\"#/definitions/stringArray\"},\"additionalProperties\":{\"$ref\":\"#\"},\"definitions\":{\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#\"},\"default\":{}},\"properties\":{\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#\"},\"default\":{}},\"patternProperties\":{\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#\"},\"propertyNames\":{\"format\":\"regex\"},\"default\":{}},\"dependencies\":{\"type\":\"object\",\"additionalProperties\":{\"anyOf\":[{\"$ref\":\"#\"},{\"$ref\":\"#/definitions/stringArray\"}]}},\"propertyNames\":{\"$ref\":\"#\"},\"const\":true,\"enum\":{\"type\":\"array\",\"items\":true,\"minItems\":1,\"uniqueItems\":true},\"type\":{\"anyOf\":[{\"$ref\":\"#/definitions/simpleTypes\"},{\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/simpleTypes\"},\"minItems\":1,\"uniqueItems\":true}]},\"format\":{\"type\":\"string\"},\"contentMediaType\":{\"type\":\"string\"},\"contentEncoding\":{\"type\":\"string\"},\"if\":{\"$ref\":\"#\"},\"then\":{\"$ref\":\"#\"},\"else\":{\"$ref\":\"#\"},\"allOf\":{\"$ref\":\"#/definitions/schemaArray\"},\"anyOf\":{\"$ref\":\"#/definitions/schemaArray\"},\"oneOf\":{\"$ref\":\"#/definitions/schemaArray\"},\"not\":{\"$ref\":\"#\"}},\"default\":true}");
 
 /***/ }),
-/* 31 */
+/* 23 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -14482,14 +13551,15 @@ module.exports.default = mimicFn;
 
 
 /***/ }),
-/* 32 */
+/* 24 */,
+/* 25 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-const path = __webpack_require__(13);
-const electron = __webpack_require__(3);
-const Conf = __webpack_require__(33);
+const path = __webpack_require__(1);
+const electron = __webpack_require__(5);
+const Conf = __webpack_require__(32);
 
 class ElectronStore extends Conf {
 	constructor(options) {
@@ -14520,26 +13590,955 @@ module.exports = ElectronStore;
 
 
 /***/ }),
-/* 33 */
+/* 26 */,
+/* 27 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// CodeMirror, copyright (c) by Marijn Haverbeke and others
+// Distributed under an MIT license: https://codemirror.net/LICENSE
+
+// Define search commands. Depends on dialog.js or another
+// implementation of the openDialog method.
+
+// Replace works a little oddly -- it will do the replace on the next
+// Ctrl-G (or whatever is bound to findNext) press. You prevent a
+// replace by making sure the match is no longer selected when hitting
+// Ctrl-G.
+
+(function(mod) {
+  if (true) // CommonJS
+    mod(__webpack_require__(2), __webpack_require__(28), __webpack_require__(6));
+  else {}
+})(function(CodeMirror) {
+  "use strict";
+
+  function searchOverlay(query, caseInsensitive) {
+    if (typeof query == "string")
+      query = new RegExp(query.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&"), caseInsensitive ? "gi" : "g");
+    else if (!query.global)
+      query = new RegExp(query.source, query.ignoreCase ? "gi" : "g");
+
+    return {token: function(stream) {
+      query.lastIndex = stream.pos;
+      var match = query.exec(stream.string);
+      if (match && match.index == stream.pos) {
+        stream.pos += match[0].length || 1;
+        return "searching";
+      } else if (match) {
+        stream.pos = match.index;
+      } else {
+        stream.skipToEnd();
+      }
+    }};
+  }
+
+  function SearchState() {
+    this.posFrom = this.posTo = this.lastQuery = this.query = null;
+    this.overlay = null;
+  }
+
+  function getSearchState(cm) {
+    return cm.state.search || (cm.state.search = new SearchState());
+  }
+
+  function queryCaseInsensitive(query) {
+    return typeof query == "string" && query == query.toLowerCase();
+  }
+
+  function getSearchCursor(cm, query, pos) {
+    // Heuristic: if the query string is all lowercase, do a case insensitive search.
+    return cm.getSearchCursor(query, pos, {caseFold: queryCaseInsensitive(query), multiline: true});
+  }
+
+  function persistentDialog(cm, text, deflt, onEnter, onKeyDown) {
+    cm.openDialog(text, onEnter, {
+      value: deflt,
+      selectValueOnOpen: true,
+      closeOnEnter: false,
+      onClose: function() { clearSearch(cm); },
+      onKeyDown: onKeyDown
+    });
+  }
+
+  function dialog(cm, text, shortText, deflt, f) {
+    if (cm.openDialog) cm.openDialog(text, f, {value: deflt, selectValueOnOpen: true});
+    else f(prompt(shortText, deflt));
+  }
+
+  function confirmDialog(cm, text, shortText, fs) {
+    if (cm.openConfirm) cm.openConfirm(text, fs);
+    else if (confirm(shortText)) fs[0]();
+  }
+
+  function parseString(string) {
+    return string.replace(/\\([nrt\\])/g, function(match, ch) {
+      if (ch == "n") return "\n"
+      if (ch == "r") return "\r"
+      if (ch == "t") return "\t"
+      if (ch == "\\") return "\\"
+      return match
+    })
+  }
+
+  function parseQuery(query) {
+    var isRE = query.match(/^\/(.*)\/([a-z]*)$/);
+    if (isRE) {
+      try { query = new RegExp(isRE[1], isRE[2].indexOf("i") == -1 ? "" : "i"); }
+      catch(e) {} // Not a regular expression after all, do a string search
+    } else {
+      query = parseString(query)
+    }
+    if (typeof query == "string" ? query == "" : query.test(""))
+      query = /x^/;
+    return query;
+  }
+
+  function startSearch(cm, state, query) {
+    state.queryText = query;
+    state.query = parseQuery(query);
+    cm.removeOverlay(state.overlay, queryCaseInsensitive(state.query));
+    state.overlay = searchOverlay(state.query, queryCaseInsensitive(state.query));
+    cm.addOverlay(state.overlay);
+    if (cm.showMatchesOnScrollbar) {
+      if (state.annotate) { state.annotate.clear(); state.annotate = null; }
+      state.annotate = cm.showMatchesOnScrollbar(state.query, queryCaseInsensitive(state.query));
+    }
+  }
+
+  function doSearch(cm, rev, persistent, immediate) {
+    var state = getSearchState(cm);
+    if (state.query) return findNext(cm, rev);
+    var q = cm.getSelection() || state.lastQuery;
+    if (q instanceof RegExp && q.source == "x^") q = null
+    if (persistent && cm.openDialog) {
+      var hiding = null
+      var searchNext = function(query, event) {
+        CodeMirror.e_stop(event);
+        if (!query) return;
+        if (query != state.queryText) {
+          startSearch(cm, state, query);
+          state.posFrom = state.posTo = cm.getCursor();
+        }
+        if (hiding) hiding.style.opacity = 1
+        findNext(cm, event.shiftKey, function(_, to) {
+          var dialog
+          if (to.line < 3 && document.querySelector &&
+              (dialog = cm.display.wrapper.querySelector(".CodeMirror-dialog")) &&
+              dialog.getBoundingClientRect().bottom - 4 > cm.cursorCoords(to, "window").top)
+            (hiding = dialog).style.opacity = .4
+        })
+      };
+      persistentDialog(cm, getQueryDialog(cm), q, searchNext, function(event, query) {
+        var keyName = CodeMirror.keyName(event)
+        var extra = cm.getOption('extraKeys'), cmd = (extra && extra[keyName]) || CodeMirror.keyMap[cm.getOption("keyMap")][keyName]
+        if (cmd == "findNext" || cmd == "findPrev" ||
+          cmd == "findPersistentNext" || cmd == "findPersistentPrev") {
+          CodeMirror.e_stop(event);
+          startSearch(cm, getSearchState(cm), query);
+          cm.execCommand(cmd);
+        } else if (cmd == "find" || cmd == "findPersistent") {
+          CodeMirror.e_stop(event);
+          searchNext(query, event);
+        }
+      });
+      if (immediate && q) {
+        startSearch(cm, state, q);
+        findNext(cm, rev);
+      }
+    } else {
+      dialog(cm, getQueryDialog(cm), "Search for:", q, function(query) {
+        if (query && !state.query) cm.operation(function() {
+          startSearch(cm, state, query);
+          state.posFrom = state.posTo = cm.getCursor();
+          findNext(cm, rev);
+        });
+      });
+    }
+  }
+
+  function findNext(cm, rev, callback) {cm.operation(function() {
+    var state = getSearchState(cm);
+    var cursor = getSearchCursor(cm, state.query, rev ? state.posFrom : state.posTo);
+    if (!cursor.find(rev)) {
+      cursor = getSearchCursor(cm, state.query, rev ? CodeMirror.Pos(cm.lastLine()) : CodeMirror.Pos(cm.firstLine(), 0));
+      if (!cursor.find(rev)) return;
+    }
+    cm.setSelection(cursor.from(), cursor.to());
+    cm.scrollIntoView({from: cursor.from(), to: cursor.to()}, 20);
+    state.posFrom = cursor.from(); state.posTo = cursor.to();
+    if (callback) callback(cursor.from(), cursor.to())
+  });}
+
+  function clearSearch(cm) {cm.operation(function() {
+    var state = getSearchState(cm);
+    state.lastQuery = state.query;
+    if (!state.query) return;
+    state.query = state.queryText = null;
+    cm.removeOverlay(state.overlay);
+    if (state.annotate) { state.annotate.clear(); state.annotate = null; }
+  });}
+
+
+  function getQueryDialog(cm)  {
+    return '<span class="CodeMirror-search-label">' + cm.phrase("Search:") + '</span> <input type="text" style="width: 10em" class="CodeMirror-search-field"/> <span style="color: #888" class="CodeMirror-search-hint">' + cm.phrase("(Use /re/ syntax for regexp search)") + '</span>';
+  }
+  function getReplaceQueryDialog(cm) {
+    return ' <input type="text" style="width: 10em" class="CodeMirror-search-field"/> <span style="color: #888" class="CodeMirror-search-hint">' + cm.phrase("(Use /re/ syntax for regexp search)") + '</span>';
+  }
+  function getReplacementQueryDialog(cm) {
+    return '<span class="CodeMirror-search-label">' + cm.phrase("With:") + '</span> <input type="text" style="width: 10em" class="CodeMirror-search-field"/>';
+  }
+  function getDoReplaceConfirm(cm) {
+    return '<span class="CodeMirror-search-label">' + cm.phrase("Replace?") + '</span> <button>' + cm.phrase("Yes") + '</button> <button>' + cm.phrase("No") + '</button> <button>' + cm.phrase("All") + '</button> <button>' + cm.phrase("Stop") + '</button> ';
+  }
+
+  function replaceAll(cm, query, text) {
+    cm.operation(function() {
+      for (var cursor = getSearchCursor(cm, query); cursor.findNext();) {
+        if (typeof query != "string") {
+          var match = cm.getRange(cursor.from(), cursor.to()).match(query);
+          cursor.replace(text.replace(/\$(\d)/g, function(_, i) {return match[i];}));
+        } else cursor.replace(text);
+      }
+    });
+  }
+
+  function replace(cm, all) {
+    if (cm.getOption("readOnly")) return;
+    var query = cm.getSelection() || getSearchState(cm).lastQuery;
+    var dialogText = '<span class="CodeMirror-search-label">' + (all ? cm.phrase("Replace all:") : cm.phrase("Replace:")) + '</span>';
+    dialog(cm, dialogText + getReplaceQueryDialog(cm), dialogText, query, function(query) {
+      if (!query) return;
+      query = parseQuery(query);
+      dialog(cm, getReplacementQueryDialog(cm), cm.phrase("Replace with:"), "", function(text) {
+        text = parseString(text)
+        if (all) {
+          replaceAll(cm, query, text)
+        } else {
+          clearSearch(cm);
+          var cursor = getSearchCursor(cm, query, cm.getCursor("from"));
+          var advance = function() {
+            var start = cursor.from(), match;
+            if (!(match = cursor.findNext())) {
+              cursor = getSearchCursor(cm, query);
+              if (!(match = cursor.findNext()) ||
+                  (start && cursor.from().line == start.line && cursor.from().ch == start.ch)) return;
+            }
+            cm.setSelection(cursor.from(), cursor.to());
+            cm.scrollIntoView({from: cursor.from(), to: cursor.to()});
+            confirmDialog(cm, getDoReplaceConfirm(cm), cm.phrase("Replace?"),
+                          [function() {doReplace(match);}, advance,
+                           function() {replaceAll(cm, query, text)}]);
+          };
+          var doReplace = function(match) {
+            cursor.replace(typeof query == "string" ? text :
+                           text.replace(/\$(\d)/g, function(_, i) {return match[i];}));
+            advance();
+          };
+          advance();
+        }
+      });
+    });
+  }
+
+  CodeMirror.commands.find = function(cm) {clearSearch(cm); doSearch(cm);};
+  CodeMirror.commands.findPersistent = function(cm) {clearSearch(cm); doSearch(cm, false, true);};
+  CodeMirror.commands.findPersistentNext = function(cm) {doSearch(cm, false, true, true);};
+  CodeMirror.commands.findPersistentPrev = function(cm) {doSearch(cm, true, true, true);};
+  CodeMirror.commands.findNext = doSearch;
+  CodeMirror.commands.findPrev = function(cm) {doSearch(cm, true);};
+  CodeMirror.commands.clearSearch = clearSearch;
+  CodeMirror.commands.replace = replace;
+  CodeMirror.commands.replaceAll = function(cm) {replace(cm, true);};
+});
+
+
+/***/ }),
+/* 28 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// CodeMirror, copyright (c) by Marijn Haverbeke and others
+// Distributed under an MIT license: https://codemirror.net/LICENSE
+
+(function(mod) {
+  if (true) // CommonJS
+    mod(__webpack_require__(2))
+  else {}
+})(function(CodeMirror) {
+  "use strict"
+  var Pos = CodeMirror.Pos
+
+  function regexpFlags(regexp) {
+    var flags = regexp.flags
+    return flags != null ? flags : (regexp.ignoreCase ? "i" : "")
+      + (regexp.global ? "g" : "")
+      + (regexp.multiline ? "m" : "")
+  }
+
+  function ensureFlags(regexp, flags) {
+    var current = regexpFlags(regexp), target = current
+    for (var i = 0; i < flags.length; i++) if (target.indexOf(flags.charAt(i)) == -1)
+      target += flags.charAt(i)
+    return current == target ? regexp : new RegExp(regexp.source, target)
+  }
+
+  function maybeMultiline(regexp) {
+    return /\\s|\\n|\n|\\W|\\D|\[\^/.test(regexp.source)
+  }
+
+  function searchRegexpForward(doc, regexp, start) {
+    regexp = ensureFlags(regexp, "g")
+    for (var line = start.line, ch = start.ch, last = doc.lastLine(); line <= last; line++, ch = 0) {
+      regexp.lastIndex = ch
+      var string = doc.getLine(line), match = regexp.exec(string)
+      if (match)
+        return {from: Pos(line, match.index),
+                to: Pos(line, match.index + match[0].length),
+                match: match}
+    }
+  }
+
+  function searchRegexpForwardMultiline(doc, regexp, start) {
+    if (!maybeMultiline(regexp)) return searchRegexpForward(doc, regexp, start)
+
+    regexp = ensureFlags(regexp, "gm")
+    var string, chunk = 1
+    for (var line = start.line, last = doc.lastLine(); line <= last;) {
+      // This grows the search buffer in exponentially-sized chunks
+      // between matches, so that nearby matches are fast and don't
+      // require concatenating the whole document (in case we're
+      // searching for something that has tons of matches), but at the
+      // same time, the amount of retries is limited.
+      for (var i = 0; i < chunk; i++) {
+        if (line > last) break
+        var curLine = doc.getLine(line++)
+        string = string == null ? curLine : string + "\n" + curLine
+      }
+      chunk = chunk * 2
+      regexp.lastIndex = start.ch
+      var match = regexp.exec(string)
+      if (match) {
+        var before = string.slice(0, match.index).split("\n"), inside = match[0].split("\n")
+        var startLine = start.line + before.length - 1, startCh = before[before.length - 1].length
+        return {from: Pos(startLine, startCh),
+                to: Pos(startLine + inside.length - 1,
+                        inside.length == 1 ? startCh + inside[0].length : inside[inside.length - 1].length),
+                match: match}
+      }
+    }
+  }
+
+  function lastMatchIn(string, regexp, endMargin) {
+    var match, from = 0
+    while (from <= string.length) {
+      regexp.lastIndex = from
+      var newMatch = regexp.exec(string)
+      if (!newMatch) break
+      var end = newMatch.index + newMatch[0].length
+      if (end > string.length - endMargin) break
+      if (!match || end > match.index + match[0].length)
+        match = newMatch
+      from = newMatch.index + 1
+    }
+    return match
+  }
+
+  function searchRegexpBackward(doc, regexp, start) {
+    regexp = ensureFlags(regexp, "g")
+    for (var line = start.line, ch = start.ch, first = doc.firstLine(); line >= first; line--, ch = -1) {
+      var string = doc.getLine(line)
+      var match = lastMatchIn(string, regexp, ch < 0 ? 0 : string.length - ch)
+      if (match)
+        return {from: Pos(line, match.index),
+                to: Pos(line, match.index + match[0].length),
+                match: match}
+    }
+  }
+
+  function searchRegexpBackwardMultiline(doc, regexp, start) {
+    if (!maybeMultiline(regexp)) return searchRegexpBackward(doc, regexp, start)
+    regexp = ensureFlags(regexp, "gm")
+    var string, chunkSize = 1, endMargin = doc.getLine(start.line).length - start.ch
+    for (var line = start.line, first = doc.firstLine(); line >= first;) {
+      for (var i = 0; i < chunkSize && line >= first; i++) {
+        var curLine = doc.getLine(line--)
+        string = string == null ? curLine : curLine + "\n" + string
+      }
+      chunkSize *= 2
+
+      var match = lastMatchIn(string, regexp, endMargin)
+      if (match) {
+        var before = string.slice(0, match.index).split("\n"), inside = match[0].split("\n")
+        var startLine = line + before.length, startCh = before[before.length - 1].length
+        return {from: Pos(startLine, startCh),
+                to: Pos(startLine + inside.length - 1,
+                        inside.length == 1 ? startCh + inside[0].length : inside[inside.length - 1].length),
+                match: match}
+      }
+    }
+  }
+
+  var doFold, noFold
+  if (String.prototype.normalize) {
+    doFold = function(str) { return str.normalize("NFD").toLowerCase() }
+    noFold = function(str) { return str.normalize("NFD") }
+  } else {
+    doFold = function(str) { return str.toLowerCase() }
+    noFold = function(str) { return str }
+  }
+
+  // Maps a position in a case-folded line back to a position in the original line
+  // (compensating for codepoints increasing in number during folding)
+  function adjustPos(orig, folded, pos, foldFunc) {
+    if (orig.length == folded.length) return pos
+    for (var min = 0, max = pos + Math.max(0, orig.length - folded.length);;) {
+      if (min == max) return min
+      var mid = (min + max) >> 1
+      var len = foldFunc(orig.slice(0, mid)).length
+      if (len == pos) return mid
+      else if (len > pos) max = mid
+      else min = mid + 1
+    }
+  }
+
+  function searchStringForward(doc, query, start, caseFold) {
+    // Empty string would match anything and never progress, so we
+    // define it to match nothing instead.
+    if (!query.length) return null
+    var fold = caseFold ? doFold : noFold
+    var lines = fold(query).split(/\r|\n\r?/)
+
+    search: for (var line = start.line, ch = start.ch, last = doc.lastLine() + 1 - lines.length; line <= last; line++, ch = 0) {
+      var orig = doc.getLine(line).slice(ch), string = fold(orig)
+      if (lines.length == 1) {
+        var found = string.indexOf(lines[0])
+        if (found == -1) continue search
+        var start = adjustPos(orig, string, found, fold) + ch
+        return {from: Pos(line, adjustPos(orig, string, found, fold) + ch),
+                to: Pos(line, adjustPos(orig, string, found + lines[0].length, fold) + ch)}
+      } else {
+        var cutFrom = string.length - lines[0].length
+        if (string.slice(cutFrom) != lines[0]) continue search
+        for (var i = 1; i < lines.length - 1; i++)
+          if (fold(doc.getLine(line + i)) != lines[i]) continue search
+        var end = doc.getLine(line + lines.length - 1), endString = fold(end), lastLine = lines[lines.length - 1]
+        if (endString.slice(0, lastLine.length) != lastLine) continue search
+        return {from: Pos(line, adjustPos(orig, string, cutFrom, fold) + ch),
+                to: Pos(line + lines.length - 1, adjustPos(end, endString, lastLine.length, fold))}
+      }
+    }
+  }
+
+  function searchStringBackward(doc, query, start, caseFold) {
+    if (!query.length) return null
+    var fold = caseFold ? doFold : noFold
+    var lines = fold(query).split(/\r|\n\r?/)
+
+    search: for (var line = start.line, ch = start.ch, first = doc.firstLine() - 1 + lines.length; line >= first; line--, ch = -1) {
+      var orig = doc.getLine(line)
+      if (ch > -1) orig = orig.slice(0, ch)
+      var string = fold(orig)
+      if (lines.length == 1) {
+        var found = string.lastIndexOf(lines[0])
+        if (found == -1) continue search
+        return {from: Pos(line, adjustPos(orig, string, found, fold)),
+                to: Pos(line, adjustPos(orig, string, found + lines[0].length, fold))}
+      } else {
+        var lastLine = lines[lines.length - 1]
+        if (string.slice(0, lastLine.length) != lastLine) continue search
+        for (var i = 1, start = line - lines.length + 1; i < lines.length - 1; i++)
+          if (fold(doc.getLine(start + i)) != lines[i]) continue search
+        var top = doc.getLine(line + 1 - lines.length), topString = fold(top)
+        if (topString.slice(topString.length - lines[0].length) != lines[0]) continue search
+        return {from: Pos(line + 1 - lines.length, adjustPos(top, topString, top.length - lines[0].length, fold)),
+                to: Pos(line, adjustPos(orig, string, lastLine.length, fold))}
+      }
+    }
+  }
+
+  function SearchCursor(doc, query, pos, options) {
+    this.atOccurrence = false
+    this.doc = doc
+    pos = pos ? doc.clipPos(pos) : Pos(0, 0)
+    this.pos = {from: pos, to: pos}
+
+    var caseFold
+    if (typeof options == "object") {
+      caseFold = options.caseFold
+    } else { // Backwards compat for when caseFold was the 4th argument
+      caseFold = options
+      options = null
+    }
+
+    if (typeof query == "string") {
+      if (caseFold == null) caseFold = false
+      this.matches = function(reverse, pos) {
+        return (reverse ? searchStringBackward : searchStringForward)(doc, query, pos, caseFold)
+      }
+    } else {
+      query = ensureFlags(query, "gm")
+      if (!options || options.multiline !== false)
+        this.matches = function(reverse, pos) {
+          return (reverse ? searchRegexpBackwardMultiline : searchRegexpForwardMultiline)(doc, query, pos)
+        }
+      else
+        this.matches = function(reverse, pos) {
+          return (reverse ? searchRegexpBackward : searchRegexpForward)(doc, query, pos)
+        }
+    }
+  }
+
+  SearchCursor.prototype = {
+    findNext: function() {return this.find(false)},
+    findPrevious: function() {return this.find(true)},
+
+    find: function(reverse) {
+      var result = this.matches(reverse, this.doc.clipPos(reverse ? this.pos.from : this.pos.to))
+
+      // Implements weird auto-growing behavior on null-matches for
+      // backwards-compatiblity with the vim code (unfortunately)
+      while (result && CodeMirror.cmpPos(result.from, result.to) == 0) {
+        if (reverse) {
+          if (result.from.ch) result.from = Pos(result.from.line, result.from.ch - 1)
+          else if (result.from.line == this.doc.firstLine()) result = null
+          else result = this.matches(reverse, this.doc.clipPos(Pos(result.from.line - 1)))
+        } else {
+          if (result.to.ch < this.doc.getLine(result.to.line).length) result.to = Pos(result.to.line, result.to.ch + 1)
+          else if (result.to.line == this.doc.lastLine()) result = null
+          else result = this.matches(reverse, Pos(result.to.line + 1, 0))
+        }
+      }
+
+      if (result) {
+        this.pos = result
+        this.atOccurrence = true
+        return this.pos.match || true
+      } else {
+        var end = Pos(reverse ? this.doc.firstLine() : this.doc.lastLine() + 1, 0)
+        this.pos = {from: end, to: end}
+        return this.atOccurrence = false
+      }
+    },
+
+    from: function() {if (this.atOccurrence) return this.pos.from},
+    to: function() {if (this.atOccurrence) return this.pos.to},
+
+    replace: function(newText, origin) {
+      if (!this.atOccurrence) return
+      var lines = CodeMirror.splitLines(newText)
+      this.doc.replaceRange(lines, this.pos.from, this.pos.to, origin)
+      this.pos.to = Pos(this.pos.from.line + lines.length - 1,
+                        lines[lines.length - 1].length + (lines.length == 1 ? this.pos.from.ch : 0))
+    }
+  }
+
+  CodeMirror.defineExtension("getSearchCursor", function(query, pos, caseFold) {
+    return new SearchCursor(this.doc, query, pos, caseFold)
+  })
+  CodeMirror.defineDocExtension("getSearchCursor", function(query, pos, caseFold) {
+    return new SearchCursor(this, query, pos, caseFold)
+  })
+
+  CodeMirror.defineExtension("selectMatches", function(query, caseFold) {
+    var ranges = []
+    var cur = this.getSearchCursor(query, this.getCursor("from"), caseFold)
+    while (cur.findNext()) {
+      if (CodeMirror.cmpPos(cur.to(), this.getCursor("to")) > 0) break
+      ranges.push({anchor: cur.from(), head: cur.to()})
+    }
+    if (ranges.length)
+      this.setSelections(ranges, 0)
+  })
+});
+
+
+/***/ }),
+/* 29 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// CodeMirror, copyright (c) by Marijn Haverbeke and others
+// Distributed under an MIT license: https://codemirror.net/LICENSE
+
+// Defines jumpToLine command. Uses dialog.js if present.
+
+(function(mod) {
+  if (true) // CommonJS
+    mod(__webpack_require__(2), __webpack_require__(6));
+  else {}
+})(function(CodeMirror) {
+  "use strict";
+
+  function dialog(cm, text, shortText, deflt, f) {
+    if (cm.openDialog) cm.openDialog(text, f, {value: deflt, selectValueOnOpen: true});
+    else f(prompt(shortText, deflt));
+  }
+
+  function getJumpDialog(cm) {
+    return cm.phrase("Jump to line:") + ' <input type="text" style="width: 10em" class="CodeMirror-search-field"/> <span style="color: #888" class="CodeMirror-search-hint">' + cm.phrase("(Use line:column or scroll% syntax)") + '</span>';
+  }
+
+  function interpretLine(cm, string) {
+    var num = Number(string)
+    if (/^[-+]/.test(string)) return cm.getCursor().line + num
+    else return num - 1
+  }
+
+  CodeMirror.commands.jumpToLine = function(cm) {
+    var cur = cm.getCursor();
+    dialog(cm, getJumpDialog(cm), cm.phrase("Jump to line:"), (cur.line + 1) + ":" + cur.ch, function(posStr) {
+      if (!posStr) return;
+
+      var match;
+      if (match = /^\s*([\+\-]?\d+)\s*\:\s*(\d+)\s*$/.exec(posStr)) {
+        cm.setCursor(interpretLine(cm, match[1]), Number(match[2]))
+      } else if (match = /^\s*([\+\-]?\d+(\.\d+)?)\%\s*/.exec(posStr)) {
+        var line = Math.round(cm.lineCount() * Number(match[1]) / 100);
+        if (/^[-+]/.test(match[1])) line = cur.line + line + 1;
+        cm.setCursor(line - 1, cur.ch);
+      } else if (match = /^\s*\:?\s*([\+\-]?\d+)\s*/.exec(posStr)) {
+        cm.setCursor(interpretLine(cm, match[1]), cur.ch);
+      }
+    });
+  };
+
+  CodeMirror.keyMap["default"]["Alt-G"] = "jumpToLine";
+});
+
+
+/***/ }),
+/* 30 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// CodeMirror, copyright (c) by Marijn Haverbeke and others
+// Distributed under an MIT license: https://codemirror.net/LICENSE
+
+(function(mod) {
+  if (true) // CommonJS
+    mod(__webpack_require__(2));
+  else {}
+})(function(CodeMirror) {
+  var defaults = {
+    pairs: "()[]{}''\"\"",
+    closeBefore: ")]}'\":;>",
+    triples: "",
+    explode: "[]{}"
+  };
+
+  var Pos = CodeMirror.Pos;
+
+  CodeMirror.defineOption("autoCloseBrackets", false, function(cm, val, old) {
+    if (old && old != CodeMirror.Init) {
+      cm.removeKeyMap(keyMap);
+      cm.state.closeBrackets = null;
+    }
+    if (val) {
+      ensureBound(getOption(val, "pairs"))
+      cm.state.closeBrackets = val;
+      cm.addKeyMap(keyMap);
+    }
+  });
+
+  function getOption(conf, name) {
+    if (name == "pairs" && typeof conf == "string") return conf;
+    if (typeof conf == "object" && conf[name] != null) return conf[name];
+    return defaults[name];
+  }
+
+  var keyMap = {Backspace: handleBackspace, Enter: handleEnter};
+  function ensureBound(chars) {
+    for (var i = 0; i < chars.length; i++) {
+      var ch = chars.charAt(i), key = "'" + ch + "'"
+      if (!keyMap[key]) keyMap[key] = handler(ch)
+    }
+  }
+  ensureBound(defaults.pairs + "`")
+
+  function handler(ch) {
+    return function(cm) { return handleChar(cm, ch); };
+  }
+
+  function getConfig(cm) {
+    var deflt = cm.state.closeBrackets;
+    if (!deflt || deflt.override) return deflt;
+    var mode = cm.getModeAt(cm.getCursor());
+    return mode.closeBrackets || deflt;
+  }
+
+  function handleBackspace(cm) {
+    var conf = getConfig(cm);
+    if (!conf || cm.getOption("disableInput")) return CodeMirror.Pass;
+
+    var pairs = getOption(conf, "pairs");
+    var ranges = cm.listSelections();
+    for (var i = 0; i < ranges.length; i++) {
+      if (!ranges[i].empty()) return CodeMirror.Pass;
+      var around = charsAround(cm, ranges[i].head);
+      if (!around || pairs.indexOf(around) % 2 != 0) return CodeMirror.Pass;
+    }
+    for (var i = ranges.length - 1; i >= 0; i--) {
+      var cur = ranges[i].head;
+      cm.replaceRange("", Pos(cur.line, cur.ch - 1), Pos(cur.line, cur.ch + 1), "+delete");
+    }
+  }
+
+  function handleEnter(cm) {
+    var conf = getConfig(cm);
+    var explode = conf && getOption(conf, "explode");
+    if (!explode || cm.getOption("disableInput")) return CodeMirror.Pass;
+
+    var ranges = cm.listSelections();
+    for (var i = 0; i < ranges.length; i++) {
+      if (!ranges[i].empty()) return CodeMirror.Pass;
+      var around = charsAround(cm, ranges[i].head);
+      if (!around || explode.indexOf(around) % 2 != 0) return CodeMirror.Pass;
+    }
+    cm.operation(function() {
+      var linesep = cm.lineSeparator() || "\n";
+      cm.replaceSelection(linesep + linesep, null);
+      cm.execCommand("goCharLeft");
+      ranges = cm.listSelections();
+      for (var i = 0; i < ranges.length; i++) {
+        var line = ranges[i].head.line;
+        cm.indentLine(line, null, true);
+        cm.indentLine(line + 1, null, true);
+      }
+    });
+  }
+
+  function contractSelection(sel) {
+    var inverted = CodeMirror.cmpPos(sel.anchor, sel.head) > 0;
+    return {anchor: new Pos(sel.anchor.line, sel.anchor.ch + (inverted ? -1 : 1)),
+            head: new Pos(sel.head.line, sel.head.ch + (inverted ? 1 : -1))};
+  }
+
+  function handleChar(cm, ch) {
+    var conf = getConfig(cm);
+    if (!conf || cm.getOption("disableInput")) return CodeMirror.Pass;
+
+    var pairs = getOption(conf, "pairs");
+    var pos = pairs.indexOf(ch);
+    if (pos == -1) return CodeMirror.Pass;
+
+    var closeBefore = getOption(conf,"closeBefore");
+
+    var triples = getOption(conf, "triples");
+
+    var identical = pairs.charAt(pos + 1) == ch;
+    var ranges = cm.listSelections();
+    var opening = pos % 2 == 0;
+
+    var type;
+    for (var i = 0; i < ranges.length; i++) {
+      var range = ranges[i], cur = range.head, curType;
+      var next = cm.getRange(cur, Pos(cur.line, cur.ch + 1));
+      if (opening && !range.empty()) {
+        curType = "surround";
+      } else if ((identical || !opening) && next == ch) {
+        if (identical && stringStartsAfter(cm, cur))
+          curType = "both";
+        else if (triples.indexOf(ch) >= 0 && cm.getRange(cur, Pos(cur.line, cur.ch + 3)) == ch + ch + ch)
+          curType = "skipThree";
+        else
+          curType = "skip";
+      } else if (identical && cur.ch > 1 && triples.indexOf(ch) >= 0 &&
+                 cm.getRange(Pos(cur.line, cur.ch - 2), cur) == ch + ch) {
+        if (cur.ch > 2 && /\bstring/.test(cm.getTokenTypeAt(Pos(cur.line, cur.ch - 2)))) return CodeMirror.Pass;
+        curType = "addFour";
+      } else if (identical) {
+        var prev = cur.ch == 0 ? " " : cm.getRange(Pos(cur.line, cur.ch - 1), cur)
+        if (!CodeMirror.isWordChar(next) && prev != ch && !CodeMirror.isWordChar(prev)) curType = "both";
+        else return CodeMirror.Pass;
+      } else if (opening && (next.length === 0 || /\s/.test(next) || closeBefore.indexOf(next) > -1)) {
+        curType = "both";
+      } else {
+        return CodeMirror.Pass;
+      }
+      if (!type) type = curType;
+      else if (type != curType) return CodeMirror.Pass;
+    }
+
+    var left = pos % 2 ? pairs.charAt(pos - 1) : ch;
+    var right = pos % 2 ? ch : pairs.charAt(pos + 1);
+    cm.operation(function() {
+      if (type == "skip") {
+        cm.execCommand("goCharRight");
+      } else if (type == "skipThree") {
+        for (var i = 0; i < 3; i++)
+          cm.execCommand("goCharRight");
+      } else if (type == "surround") {
+        var sels = cm.getSelections();
+        for (var i = 0; i < sels.length; i++)
+          sels[i] = left + sels[i] + right;
+        cm.replaceSelections(sels, "around");
+        sels = cm.listSelections().slice();
+        for (var i = 0; i < sels.length; i++)
+          sels[i] = contractSelection(sels[i]);
+        cm.setSelections(sels);
+      } else if (type == "both") {
+        cm.replaceSelection(left + right, null);
+        cm.triggerElectric(left + right);
+        cm.execCommand("goCharLeft");
+      } else if (type == "addFour") {
+        cm.replaceSelection(left + left + left + left, "before");
+        cm.execCommand("goCharRight");
+      }
+    });
+  }
+
+  function charsAround(cm, pos) {
+    var str = cm.getRange(Pos(pos.line, pos.ch - 1),
+                          Pos(pos.line, pos.ch + 1));
+    return str.length == 2 ? str : null;
+  }
+
+  function stringStartsAfter(cm, pos) {
+    var token = cm.getTokenAt(Pos(pos.line, pos.ch + 1))
+    return /\bstring/.test(token.type) && token.start == pos.ch &&
+      (pos.ch == 0 || !/\bstring/.test(cm.getTokenTypeAt(pos)))
+  }
+});
+
+
+/***/ }),
+/* 31 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// CodeMirror, copyright (c) by Marijn Haverbeke and others
+// Distributed under an MIT license: https://codemirror.net/LICENSE
+
+(function(mod) {
+  if (true) // CommonJS
+  mod(__webpack_require__(2));
+  else {}
+})(function(CodeMirror) {
+"use strict";
+
+CodeMirror.defineMode('z80', function(_config, parserConfig) {
+  var ez80 = parserConfig.ez80;
+  var keywords1, keywords2;
+  if (ez80) {
+    keywords1 = /^(exx?|(ld|cp)([di]r?)?|[lp]ea|pop|push|ad[cd]|cpl|daa|dec|inc|neg|sbc|sub|and|bit|[cs]cf|x?or|res|set|r[lr]c?a?|r[lr]d|s[lr]a|srl|djnz|nop|[de]i|halt|im|in([di]mr?|ir?|irx|2r?)|ot(dmr?|[id]rx|imr?)|out(0?|[di]r?|[di]2r?)|tst(io)?|slp)(\.([sl]?i)?[sl])?\b/i;
+    keywords2 = /^(((call|j[pr]|rst|ret[in]?)(\.([sl]?i)?[sl])?)|(rs|st)mix)\b/i;
+  } else {
+    keywords1 = /^(exx?|(ld|cp|in)([di]r?)?|pop|push|ad[cd]|cpl|daa|dec|inc|neg|sbc|sub|and|bit|[cs]cf|x?or|res|set|r[lr]c?a?|r[lr]d|s[lr]a|srl|djnz|nop|rst|[de]i|halt|im|ot[di]r|out[di]?)\b/i;
+    keywords2 = /^(call|j[pr]|ret[in]?|b_?(call|jump))\b/i;
+  }
+
+  var variables1 = /^(af?|bc?|c|de?|e|hl?|l|i[xy]?|r|sp)\b/i;
+  var variables2 = /^(n?[zc]|p[oe]?|m)\b/i;
+  var errors = /^([hl][xy]|i[xy][hl]|slia|sll)\b/i;
+  var numbers = /^([\da-f]+h|[0-7]+o|[01]+b|\d+d?)\b/i;
+
+  return {
+    startState: function() {
+      return {
+        context: 0
+      };
+    },
+    token: function(stream, state) {
+      if (!stream.column())
+        state.context = 0;
+
+      if (stream.eatSpace())
+        return null;
+
+      var w;
+
+      if (stream.eatWhile(/\w/)) {
+        if (ez80 && stream.eat('.')) {
+          stream.eatWhile(/\w/);
+        }
+        w = stream.current();
+
+        if (stream.indentation()) {
+          if ((state.context == 1 || state.context == 4) && variables1.test(w)) {
+            state.context = 4;
+            return 'var2';
+          }
+
+          if (state.context == 2 && variables2.test(w)) {
+            state.context = 4;
+            return 'var3';
+          }
+
+          if (keywords1.test(w)) {
+            state.context = 1;
+            return 'keyword';
+          } else if (keywords2.test(w)) {
+            state.context = 2;
+            return 'keyword';
+          } else if (state.context == 4 && numbers.test(w)) {
+            return 'number';
+          }
+
+          if (errors.test(w))
+            return 'error';
+        } else if (stream.match(numbers)) {
+          return 'number';
+        } else {
+          return null;
+        }
+      } else if (stream.eat(';')) {
+        stream.skipToEnd();
+        return 'comment';
+      } else if (stream.eat('"')) {
+        while (w = stream.next()) {
+          if (w == '"')
+            break;
+
+          if (w == '\\')
+            stream.next();
+        }
+        return 'string';
+      } else if (stream.eat('\'')) {
+        if (stream.match(/\\?.'/))
+          return 'number';
+      } else if (stream.eat('.') || stream.sol() && stream.eat('#')) {
+        state.context = 5;
+
+        if (stream.eatWhile(/\w/))
+          return 'def';
+      } else if (stream.eat('$')) {
+        if (stream.eatWhile(/[\da-f]/i))
+          return 'number';
+      } else if (stream.eat('%')) {
+        if (stream.eatWhile(/[01]/))
+          return 'number';
+      } else {
+        stream.next();
+      }
+      return null;
+    }
+  };
+});
+
+CodeMirror.defineMIME("text/x-z80", "z80");
+CodeMirror.defineMIME("text/x-ez80", { name: "z80", ez80: true });
+
+});
+
+
+/***/ }),
+/* 32 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 /* WEBPACK VAR INJECTION */(function(__filename, module) {/* eslint-disable node/no-deprecated-api */
 
-const fs = __webpack_require__(12);
-const path = __webpack_require__(13);
-const crypto = __webpack_require__(35);
-const assert = __webpack_require__(18);
-const EventEmitter = __webpack_require__(19);
-const dotProp = __webpack_require__(36);
-const makeDir = __webpack_require__(38);
-const pkgUp = __webpack_require__(39);
-const envPaths = __webpack_require__(46);
-const writeFileAtomic = __webpack_require__(48);
-const Ajv = __webpack_require__(54);
-const debounceFn = __webpack_require__(88);
-const semver = __webpack_require__(21);
-const onetime = __webpack_require__(89);
+const fs = __webpack_require__(4);
+const path = __webpack_require__(1);
+const crypto = __webpack_require__(34);
+const assert = __webpack_require__(10);
+const EventEmitter = __webpack_require__(11);
+const dotProp = __webpack_require__(35);
+const makeDir = __webpack_require__(37);
+const pkgUp = __webpack_require__(38);
+const envPaths = __webpack_require__(45);
+const writeFileAtomic = __webpack_require__(47);
+const Ajv = __webpack_require__(53);
+const debounceFn = __webpack_require__(87);
+const semver = __webpack_require__(13);
+const onetime = __webpack_require__(88);
 
 const plainObject = () => Object.create(null);
 const encryptionAlgorithm = 'aes-256-cbc';
@@ -14998,10 +14997,10 @@ class Conf {
 
 module.exports = Conf;
 
-/* WEBPACK VAR INJECTION */}.call(this, "/index.js", __webpack_require__(34)(module)))
+/* WEBPACK VAR INJECTION */}.call(this, "/index.js", __webpack_require__(33)(module)))
 
 /***/ }),
-/* 34 */
+/* 33 */
 /***/ (function(module, exports) {
 
 module.exports = function(module) {
@@ -15029,13 +15028,13 @@ module.exports = function(module) {
 
 
 /***/ }),
-/* 35 */,
-/* 36 */
+/* 34 */,
+/* 35 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-const isObj = __webpack_require__(37);
+const isObj = __webpack_require__(36);
 
 const disallowedKeys = [
 	'__proto__',
@@ -15179,7 +15178,7 @@ module.exports = {
 
 
 /***/ }),
-/* 37 */
+/* 36 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -15192,15 +15191,15 @@ module.exports = value => {
 
 
 /***/ }),
-/* 38 */
+/* 37 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-const fs = __webpack_require__(12);
-const path = __webpack_require__(13);
-const {promisify} = __webpack_require__(20);
-const semver = __webpack_require__(21);
+const fs = __webpack_require__(4);
+const path = __webpack_require__(1);
+const {promisify} = __webpack_require__(12);
+const semver = __webpack_require__(13);
 
 const useNativeRecursiveOption = semver.satisfies(process.version, '>=10.12.0');
 
@@ -15355,25 +15354,25 @@ module.exports.sync = (input, options) => {
 
 
 /***/ }),
-/* 39 */
+/* 38 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-const findUp = __webpack_require__(40);
+const findUp = __webpack_require__(39);
 
 module.exports = async ({cwd} = {}) => findUp('package.json', {cwd});
 module.exports.sync = ({cwd} = {}) => findUp.sync('package.json', {cwd});
 
 
 /***/ }),
-/* 40 */
+/* 39 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-const path = __webpack_require__(13);
-const locatePath = __webpack_require__(41);
+const path = __webpack_require__(1);
+const locatePath = __webpack_require__(40);
 
 module.exports = (filename, opts = {}) => {
 	const startDir = path.resolve(opts.cwd || '');
@@ -15420,14 +15419,14 @@ module.exports.sync = (filename, opts = {}) => {
 
 
 /***/ }),
-/* 41 */
+/* 40 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-const path = __webpack_require__(13);
-const pathExists = __webpack_require__(42);
-const pLocate = __webpack_require__(43);
+const path = __webpack_require__(1);
+const pathExists = __webpack_require__(41);
+const pLocate = __webpack_require__(42);
 
 module.exports = (iterable, options) => {
 	options = Object.assign({
@@ -15451,12 +15450,12 @@ module.exports.sync = (iterable, options) => {
 
 
 /***/ }),
-/* 42 */
+/* 41 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-const fs = __webpack_require__(12);
+const fs = __webpack_require__(4);
 
 module.exports = fp => new Promise(resolve => {
 	fs.access(fp, err => {
@@ -15475,12 +15474,12 @@ module.exports.sync = fp => {
 
 
 /***/ }),
-/* 43 */
+/* 42 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-const pLimit = __webpack_require__(44);
+const pLimit = __webpack_require__(43);
 
 class EndError extends Error {
 	constructor(value) {
@@ -15516,12 +15515,12 @@ module.exports = (iterable, tester, opts) => {
 
 
 /***/ }),
-/* 44 */
+/* 43 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-const pTry = __webpack_require__(45);
+const pTry = __webpack_require__(44);
 
 const pLimit = concurrency => {
 	if (!((Number.isInteger(concurrency) || concurrency === Infinity) && concurrency > 0)) {
@@ -15575,7 +15574,7 @@ module.exports.default = pLimit;
 
 
 /***/ }),
-/* 45 */
+/* 44 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -15591,13 +15590,13 @@ module.exports.default = pTry;
 
 
 /***/ }),
-/* 46 */
+/* 45 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-const path = __webpack_require__(13);
-const os = __webpack_require__(47);
+const path = __webpack_require__(1);
+const os = __webpack_require__(46);
 
 const homedir = os.homedir();
 const tmpdir = os.tmpdir();
@@ -15672,8 +15671,8 @@ module.exports.default = envPaths;
 
 
 /***/ }),
-/* 47 */,
-/* 48 */
+/* 46 */,
+/* 47 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -15683,20 +15682,20 @@ module.exports.sync = writeFileSync
 module.exports._getTmpname = getTmpname // for testing
 module.exports._cleanupOnExit = cleanupOnExit
 
-const fs = __webpack_require__(12)
-const MurmurHash3 = __webpack_require__(49)
-const onExit = __webpack_require__(50)
-const path = __webpack_require__(13)
-const isTypedArray = __webpack_require__(22)
-const typedArrayToBuffer = __webpack_require__(52)
-const { promisify } = __webpack_require__(20)
+const fs = __webpack_require__(4)
+const MurmurHash3 = __webpack_require__(48)
+const onExit = __webpack_require__(49)
+const path = __webpack_require__(1)
+const isTypedArray = __webpack_require__(14)
+const typedArrayToBuffer = __webpack_require__(51)
+const { promisify } = __webpack_require__(12)
 const activeFiles = {}
 
 // if we run inside of a worker_thread, `process.pid` is not unique
 /* istanbul ignore next */
 const threadId = (function getId () {
   try {
-    const workerThreads = __webpack_require__(53)
+    const workerThreads = __webpack_require__(52)
 
     /// if we are in main thread, this is set to `0`
     return workerThreads.threadId
@@ -15940,7 +15939,7 @@ function writeFileSync (filename, data, options) {
 /* WEBPACK VAR INJECTION */}.call(this, "/index.js"))
 
 /***/ }),
-/* 49 */
+/* 48 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /**
@@ -16082,17 +16081,17 @@ function writeFileSync (filename, data, options) {
 
 
 /***/ }),
-/* 50 */
+/* 49 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // Note: since nyc uses this module to output coverage, any lines
 // that are in the direct sync flow of nyc's outputCoverage are
 // ignored, since we can never get coverage for them.
-var assert = __webpack_require__(18)
-var signals = __webpack_require__(51)
+var assert = __webpack_require__(10)
+var signals = __webpack_require__(50)
 var isWin = /^win/i.test(process.platform)
 
-var EE = __webpack_require__(19)
+var EE = __webpack_require__(11)
 /* istanbul ignore if */
 if (typeof EE !== 'function') {
   EE = EE.EventEmitter
@@ -16251,7 +16250,7 @@ function processEmit (ev, arg) {
 
 
 /***/ }),
-/* 51 */
+/* 50 */
 /***/ (function(module, exports) {
 
 // This is not the set of all possible signals.
@@ -16310,7 +16309,7 @@ if (process.platform === 'linux') {
 
 
 /***/ }),
-/* 52 */
+/* 51 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /**
@@ -16322,7 +16321,7 @@ if (process.platform === 'linux') {
  * `npm install typedarray-to-buffer`
  */
 
-var isTypedArray = __webpack_require__(22).strict
+var isTypedArray = __webpack_require__(14).strict
 
 module.exports = function typedarrayToBuffer (arr) {
   if (isTypedArray(arr)) {
@@ -16341,22 +16340,22 @@ module.exports = function typedarrayToBuffer (arr) {
 
 
 /***/ }),
-/* 53 */,
-/* 54 */
+/* 52 */,
+/* 53 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var compileSchema = __webpack_require__(55)
-  , resolve = __webpack_require__(15)
-  , Cache = __webpack_require__(59)
-  , SchemaObject = __webpack_require__(23)
-  , stableStringify = __webpack_require__(24)
-  , formats = __webpack_require__(60)
-  , rules = __webpack_require__(61)
-  , $dataMetaSchema = __webpack_require__(82)
-  , util = __webpack_require__(14);
+var compileSchema = __webpack_require__(54)
+  , resolve = __webpack_require__(7)
+  , Cache = __webpack_require__(58)
+  , SchemaObject = __webpack_require__(15)
+  , stableStringify = __webpack_require__(16)
+  , formats = __webpack_require__(59)
+  , rules = __webpack_require__(60)
+  , $dataMetaSchema = __webpack_require__(81)
+  , util = __webpack_require__(3);
 
 module.exports = Ajv;
 
@@ -16373,14 +16372,14 @@ Ajv.prototype.errorsText = errorsText;
 Ajv.prototype._addSchema = _addSchema;
 Ajv.prototype._compile = _compile;
 
-Ajv.prototype.compileAsync = __webpack_require__(83);
-var customKeyword = __webpack_require__(84);
+Ajv.prototype.compileAsync = __webpack_require__(82);
+var customKeyword = __webpack_require__(83);
 Ajv.prototype.addKeyword = customKeyword.add;
 Ajv.prototype.getKeyword = customKeyword.get;
 Ajv.prototype.removeKeyword = customKeyword.remove;
 Ajv.prototype.validateKeyword = customKeyword.validate;
 
-var errorClasses = __webpack_require__(17);
+var errorClasses = __webpack_require__(9);
 Ajv.ValidationError = errorClasses.Validation;
 Ajv.MissingRefError = errorClasses.MissingRef;
 Ajv.$dataMetaSchema = $dataMetaSchema;
@@ -16789,11 +16788,11 @@ function addFormat(name, format) {
 function addDefaultMetaSchema(self) {
   var $dataSchema;
   if (self._opts.$data) {
-    $dataSchema = __webpack_require__(87);
+    $dataSchema = __webpack_require__(86);
     self.addMetaSchema($dataSchema, $dataSchema.$id, true);
   }
   if (self._opts.meta === false) return;
-  var metaSchema = __webpack_require__(30);
+  var metaSchema = __webpack_require__(22);
   if (self._opts.$data) metaSchema = $dataMetaSchema(metaSchema, META_SUPPORT_DATA);
   self.addMetaSchema(metaSchema, META_SCHEMA_ID, true);
   self._refs['http://json-schema.org/schema'] = META_SCHEMA_ID;
@@ -16855,25 +16854,25 @@ function noop() {}
 
 
 /***/ }),
-/* 55 */
+/* 54 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var resolve = __webpack_require__(15)
-  , util = __webpack_require__(14)
-  , errorClasses = __webpack_require__(17)
-  , stableStringify = __webpack_require__(24);
+var resolve = __webpack_require__(7)
+  , util = __webpack_require__(3)
+  , errorClasses = __webpack_require__(9)
+  , stableStringify = __webpack_require__(16);
 
-var validateGenerator = __webpack_require__(25);
+var validateGenerator = __webpack_require__(17);
 
 /**
  * Functions below are used inside compiled validations function
  */
 
 var ucs2length = util.ucs2length;
-var equal = __webpack_require__(16);
+var equal = __webpack_require__(8);
 
 // this error is thrown by async schemas to return validation errors via exception
 var ValidationError = errorClasses.Validation;
@@ -17249,7 +17248,7 @@ function vars(arr, statement) {
 
 
 /***/ }),
-/* 56 */
+/* 55 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /** @license URI.js v4.2.1 (c) 2011 Gary Court. License: http://github.com/garycourt/uri-js */
@@ -18642,7 +18641,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 
 
 /***/ }),
-/* 57 */
+/* 56 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -18669,7 +18668,7 @@ module.exports = function ucs2length(str) {
 
 
 /***/ }),
-/* 58 */
+/* 57 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -18765,7 +18764,7 @@ function escapeJsonPtr(str) {
 
 
 /***/ }),
-/* 59 */
+/* 58 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -18798,13 +18797,13 @@ Cache.prototype.clear = function Cache_clear() {
 
 
 /***/ }),
-/* 60 */
+/* 59 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var util = __webpack_require__(14);
+var util = __webpack_require__(3);
 
 var DATE = /^(\d\d\d\d)-(\d\d)-(\d\d)$/;
 var DAYS = [0,31,28,31,30,31,30,31,31,30,31,30,31];
@@ -18947,14 +18946,14 @@ function regex(str) {
 
 
 /***/ }),
-/* 61 */
+/* 60 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var ruleModules = __webpack_require__(62)
-  , toHash = __webpack_require__(14).toHash;
+var ruleModules = __webpack_require__(61)
+  , toHash = __webpack_require__(3).toHash;
 
 module.exports = function rules() {
   var RULES = [
@@ -19020,7 +19019,7 @@ module.exports = function rules() {
 
 
 /***/ }),
-/* 62 */
+/* 61 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19028,39 +19027,39 @@ module.exports = function rules() {
 
 //all requires must be explicit because browserify won't work with dynamic requires
 module.exports = {
-  '$ref': __webpack_require__(63),
-  allOf: __webpack_require__(64),
-  anyOf: __webpack_require__(65),
-  '$comment': __webpack_require__(66),
-  const: __webpack_require__(67),
-  contains: __webpack_require__(68),
-  dependencies: __webpack_require__(69),
-  'enum': __webpack_require__(70),
-  format: __webpack_require__(71),
-  'if': __webpack_require__(72),
-  items: __webpack_require__(73),
-  maximum: __webpack_require__(26),
-  minimum: __webpack_require__(26),
-  maxItems: __webpack_require__(27),
-  minItems: __webpack_require__(27),
-  maxLength: __webpack_require__(28),
-  minLength: __webpack_require__(28),
-  maxProperties: __webpack_require__(29),
-  minProperties: __webpack_require__(29),
-  multipleOf: __webpack_require__(74),
-  not: __webpack_require__(75),
-  oneOf: __webpack_require__(76),
-  pattern: __webpack_require__(77),
-  properties: __webpack_require__(78),
-  propertyNames: __webpack_require__(79),
-  required: __webpack_require__(80),
-  uniqueItems: __webpack_require__(81),
-  validate: __webpack_require__(25)
+  '$ref': __webpack_require__(62),
+  allOf: __webpack_require__(63),
+  anyOf: __webpack_require__(64),
+  '$comment': __webpack_require__(65),
+  const: __webpack_require__(66),
+  contains: __webpack_require__(67),
+  dependencies: __webpack_require__(68),
+  'enum': __webpack_require__(69),
+  format: __webpack_require__(70),
+  'if': __webpack_require__(71),
+  items: __webpack_require__(72),
+  maximum: __webpack_require__(18),
+  minimum: __webpack_require__(18),
+  maxItems: __webpack_require__(19),
+  minItems: __webpack_require__(19),
+  maxLength: __webpack_require__(20),
+  minLength: __webpack_require__(20),
+  maxProperties: __webpack_require__(21),
+  minProperties: __webpack_require__(21),
+  multipleOf: __webpack_require__(73),
+  not: __webpack_require__(74),
+  oneOf: __webpack_require__(75),
+  pattern: __webpack_require__(76),
+  properties: __webpack_require__(77),
+  propertyNames: __webpack_require__(78),
+  required: __webpack_require__(79),
+  uniqueItems: __webpack_require__(80),
+  validate: __webpack_require__(17)
 };
 
 
 /***/ }),
-/* 63 */
+/* 62 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19191,7 +19190,7 @@ module.exports = function generate_ref(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 64 */
+/* 63 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19241,7 +19240,7 @@ module.exports = function generate_allOf(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 65 */
+/* 64 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19322,7 +19321,7 @@ module.exports = function generate_anyOf(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 66 */
+/* 65 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19343,7 +19342,7 @@ module.exports = function generate_comment(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 67 */
+/* 66 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19406,7 +19405,7 @@ module.exports = function generate_const(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 68 */
+/* 67 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19495,7 +19494,7 @@ module.exports = function generate_contains(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 69 */
+/* 68 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19670,7 +19669,7 @@ module.exports = function generate_dependencies(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 70 */
+/* 69 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19743,7 +19742,7 @@ module.exports = function generate_enum(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 71 */
+/* 70 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19900,7 +19899,7 @@ module.exports = function generate_format(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 72 */
+/* 71 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20011,7 +20010,7 @@ module.exports = function generate_if(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 73 */
+/* 72 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20159,7 +20158,7 @@ module.exports = function generate_items(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 74 */
+/* 73 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20243,7 +20242,7 @@ module.exports = function generate_multipleOf(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 75 */
+/* 74 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20334,7 +20333,7 @@ module.exports = function generate_not(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 76 */
+/* 75 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20414,7 +20413,7 @@ module.exports = function generate_oneOf(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 77 */
+/* 76 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20496,7 +20495,7 @@ module.exports = function generate_pattern(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 78 */
+/* 77 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20833,7 +20832,7 @@ module.exports = function generate_properties(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 79 */
+/* 78 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20922,7 +20921,7 @@ module.exports = function generate_propertyNames(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 80 */
+/* 79 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -21199,7 +21198,7 @@ module.exports = function generate_required(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 81 */
+/* 80 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -21292,7 +21291,7 @@ module.exports = function generate_uniqueItems(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 82 */
+/* 81 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -21348,13 +21347,13 @@ module.exports = function (metaSchema, keywordsJsonPointers) {
 
 
 /***/ }),
-/* 83 */
+/* 82 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var MissingRefError = __webpack_require__(17).MissingRef;
+var MissingRefError = __webpack_require__(9).MissingRef;
 
 module.exports = compileAsync;
 
@@ -21445,15 +21444,15 @@ function compileAsync(schema, meta, callback) {
 
 
 /***/ }),
-/* 84 */
+/* 83 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
 var IDENTIFIER = /^[a-z_$][a-z0-9_$-]*$/i;
-var customRuleCode = __webpack_require__(85);
-var definitionSchema = __webpack_require__(86);
+var customRuleCode = __webpack_require__(84);
+var definitionSchema = __webpack_require__(85);
 
 module.exports = {
   add: addKeyword,
@@ -21598,7 +21597,7 @@ function validateKeyword(definition, throwError) {
 
 
 /***/ }),
-/* 85 */
+/* 84 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -21833,13 +21832,13 @@ module.exports = function generate_custom(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 86 */
+/* 85 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var metaSchema = __webpack_require__(30);
+var metaSchema = __webpack_require__(22);
 
 module.exports = {
   $id: 'https://github.com/epoberezkin/ajv/blob/master/lib/definition_schema.js',
@@ -21877,18 +21876,18 @@ module.exports = {
 
 
 /***/ }),
-/* 87 */
+/* 86 */
 /***/ (function(module) {
 
 module.exports = JSON.parse("{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"$id\":\"https://raw.githubusercontent.com/epoberezkin/ajv/master/lib/refs/data.json#\",\"description\":\"Meta-schema for $data reference (JSON Schema extension proposal)\",\"type\":\"object\",\"required\":[\"$data\"],\"properties\":{\"$data\":{\"type\":\"string\",\"anyOf\":[{\"format\":\"relative-json-pointer\"},{\"format\":\"json-pointer\"}]}},\"additionalProperties\":false}");
 
 /***/ }),
-/* 88 */
+/* 87 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-const mimicFn = __webpack_require__(31);
+const mimicFn = __webpack_require__(23);
 
 module.exports = (fn, options = {}) => {
 	if (typeof fn !== 'function') {
@@ -21933,12 +21932,12 @@ module.exports = (fn, options = {}) => {
 
 
 /***/ }),
-/* 89 */
+/* 88 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-const mimicFn = __webpack_require__(31);
+const mimicFn = __webpack_require__(23);
 
 const calledFunctions = new WeakMap();
 
