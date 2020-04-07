@@ -302,8 +302,7 @@ var Flag;
 
 
 /***/ }),
-/* 1 */,
-/* 2 */
+/* 1 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // CodeMirror, copyright (c) by Marijn Haverbeke and others
@@ -10051,6 +10050,7 @@ var Flag;
 
 
 /***/ }),
+/* 2 */,
 /* 3 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -10067,7 +10067,7 @@ module.exports = {
   getProperty: getProperty,
   escapeQuotes: escapeQuotes,
   equal: __webpack_require__(8),
-  ucs2length: __webpack_require__(57),
+  ucs2length: __webpack_require__(58),
   varOccurences: varOccurences,
   varReplace: varReplace,
   cleanUpCode: cleanUpCode,
@@ -10344,7 +10344,7 @@ function unescapeJsonPointer(str) {
 
 (function(mod) {
   if (true) // CommonJS
-    mod(__webpack_require__(2));
+    mod(__webpack_require__(1));
   else {}
 })(function(CodeMirror) {
   function dialogDiv(cm, template, bottom) {
@@ -10504,11 +10504,11 @@ function unescapeJsonPointer(str) {
 "use strict";
 
 
-var URI = __webpack_require__(56)
+var URI = __webpack_require__(57)
   , equal = __webpack_require__(8)
   , util = __webpack_require__(3)
   , SchemaObject = __webpack_require__(15)
-  , traverse = __webpack_require__(58);
+  , traverse = __webpack_require__(59);
 
 module.exports = resolve;
 
@@ -13557,9 +13557,9 @@ module.exports.default = mimicFn;
 
 "use strict";
 
-const path = __webpack_require__(1);
+const path = __webpack_require__(2);
 const electron = __webpack_require__(5);
-const Conf = __webpack_require__(33);
+const Conf = __webpack_require__(34);
 
 class ElectronStore extends Conf {
 	constructor(options) {
@@ -13607,7 +13607,7 @@ module.exports = ElectronStore;
 
 (function(mod) {
   if (true) // CommonJS
-    mod(__webpack_require__(2), __webpack_require__(28), __webpack_require__(6));
+    mod(__webpack_require__(1), __webpack_require__(28), __webpack_require__(6));
   else {}
 })(function(CodeMirror) {
   "use strict";
@@ -13862,7 +13862,7 @@ module.exports = ElectronStore;
 
 (function(mod) {
   if (true) // CommonJS
-    mod(__webpack_require__(2))
+    mod(__webpack_require__(1))
   else {}
 })(function(CodeMirror) {
   "use strict"
@@ -14163,7 +14163,7 @@ module.exports = ElectronStore;
 
 (function(mod) {
   if (true) // CommonJS
-    mod(__webpack_require__(2), __webpack_require__(6));
+    mod(__webpack_require__(1), __webpack_require__(6));
   else {}
 })(function(CodeMirror) {
   "use strict";
@@ -14214,7 +14214,7 @@ module.exports = ElectronStore;
 
 (function(mod) {
   if (true) // CommonJS
-    mod(__webpack_require__(2));
+    mod(__webpack_require__(1));
   else {}
 })(function(CodeMirror) {
   var defaults = {
@@ -14408,7 +14408,7 @@ module.exports = ElectronStore;
 
 (function(mod) {
   if (true) // CommonJS
-    mod(__webpack_require__(2));
+    mod(__webpack_require__(1));
   else {}
 })(function(CodeMirror) {
   "use strict";
@@ -14877,7 +14877,132 @@ module.exports = ElectronStore;
 
 (function(mod) {
   if (true) // CommonJS
-  mod(__webpack_require__(2));
+    mod(__webpack_require__(1));
+  else {}
+})(function(CodeMirror) {
+  "use strict";
+
+  CodeMirror.defineExtension("annotateScrollbar", function(options) {
+    if (typeof options == "string") options = {className: options};
+    return new Annotation(this, options);
+  });
+
+  CodeMirror.defineOption("scrollButtonHeight", 0);
+
+  function Annotation(cm, options) {
+    this.cm = cm;
+    this.options = options;
+    this.buttonHeight = options.scrollButtonHeight || cm.getOption("scrollButtonHeight");
+    this.annotations = [];
+    this.doRedraw = this.doUpdate = null;
+    this.div = cm.getWrapperElement().appendChild(document.createElement("div"));
+    this.div.style.cssText = "position: absolute; right: 0; top: 0; z-index: 7; pointer-events: none";
+    this.computeScale();
+
+    function scheduleRedraw(delay) {
+      clearTimeout(self.doRedraw);
+      self.doRedraw = setTimeout(function() { self.redraw(); }, delay);
+    }
+
+    var self = this;
+    cm.on("refresh", this.resizeHandler = function() {
+      clearTimeout(self.doUpdate);
+      self.doUpdate = setTimeout(function() {
+        if (self.computeScale()) scheduleRedraw(20);
+      }, 100);
+    });
+    cm.on("markerAdded", this.resizeHandler);
+    cm.on("markerCleared", this.resizeHandler);
+    if (options.listenForChanges !== false)
+      cm.on("changes", this.changeHandler = function() {
+        scheduleRedraw(250);
+      });
+  }
+
+  Annotation.prototype.computeScale = function() {
+    var cm = this.cm;
+    var hScale = (cm.getWrapperElement().clientHeight - cm.display.barHeight - this.buttonHeight * 2) /
+      cm.getScrollerElement().scrollHeight
+    if (hScale != this.hScale) {
+      this.hScale = hScale;
+      return true;
+    }
+  };
+
+  Annotation.prototype.update = function(annotations) {
+    this.annotations = annotations;
+    this.redraw();
+  };
+
+  Annotation.prototype.redraw = function(compute) {
+    if (compute !== false) this.computeScale();
+    var cm = this.cm, hScale = this.hScale;
+
+    var frag = document.createDocumentFragment(), anns = this.annotations;
+
+    var wrapping = cm.getOption("lineWrapping");
+    var singleLineH = wrapping && cm.defaultTextHeight() * 1.5;
+    var curLine = null, curLineObj = null;
+    function getY(pos, top) {
+      if (curLine != pos.line) {
+        curLine = pos.line;
+        curLineObj = cm.getLineHandle(curLine);
+      }
+      if ((curLineObj.widgets && curLineObj.widgets.length) ||
+          (wrapping && curLineObj.height > singleLineH))
+        return cm.charCoords(pos, "local")[top ? "top" : "bottom"];
+      var topY = cm.heightAtLine(curLineObj, "local");
+      return topY + (top ? 0 : curLineObj.height);
+    }
+
+    var lastLine = cm.lastLine()
+    if (cm.display.barWidth) for (var i = 0, nextTop; i < anns.length; i++) {
+      var ann = anns[i];
+      if (ann.to.line > lastLine) continue;
+      var top = nextTop || getY(ann.from, true) * hScale;
+      var bottom = getY(ann.to, false) * hScale;
+      while (i < anns.length - 1) {
+        if (anns[i + 1].to.line > lastLine) break;
+        nextTop = getY(anns[i + 1].from, true) * hScale;
+        if (nextTop > bottom + .9) break;
+        ann = anns[++i];
+        bottom = getY(ann.to, false) * hScale;
+      }
+      if (bottom == top) continue;
+      var height = Math.max(bottom - top, 3);
+
+      var elt = frag.appendChild(document.createElement("div"));
+      elt.style.cssText = "position: absolute; right: 0px; width: " + Math.max(cm.display.barWidth - 1, 2) + "px; top: "
+        + (top + this.buttonHeight) + "px; height: " + height + "px";
+      elt.className = this.options.className;
+      if (ann.id) {
+        elt.setAttribute("annotation-id", ann.id);
+      }
+    }
+    this.div.textContent = "";
+    this.div.appendChild(frag);
+  };
+
+  Annotation.prototype.clear = function() {
+    this.cm.off("refresh", this.resizeHandler);
+    this.cm.off("markerAdded", this.resizeHandler);
+    this.cm.off("markerCleared", this.resizeHandler);
+    if (this.changeHandler) this.cm.off("changes", this.changeHandler);
+    this.div.parentNode.removeChild(this.div);
+  };
+});
+
+
+/***/ }),
+/* 33 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// CodeMirror, copyright (c) by Marijn Haverbeke and others
+// Distributed under an MIT license: https://codemirror.net/LICENSE
+
+(function(mod) {
+  if (true) // CommonJS
+  mod(__webpack_require__(1));
   else {}
 })(function(CodeMirror) {
 "use strict";
@@ -14988,26 +15113,26 @@ CodeMirror.defineMIME("text/x-ez80", { name: "z80", ez80: true });
 
 
 /***/ }),
-/* 33 */
+/* 34 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 /* WEBPACK VAR INJECTION */(function(__filename, module) {/* eslint-disable node/no-deprecated-api */
 
 const fs = __webpack_require__(4);
-const path = __webpack_require__(1);
-const crypto = __webpack_require__(35);
+const path = __webpack_require__(2);
+const crypto = __webpack_require__(36);
 const assert = __webpack_require__(10);
 const EventEmitter = __webpack_require__(11);
-const dotProp = __webpack_require__(36);
-const makeDir = __webpack_require__(38);
-const pkgUp = __webpack_require__(39);
-const envPaths = __webpack_require__(46);
-const writeFileAtomic = __webpack_require__(48);
-const Ajv = __webpack_require__(54);
-const debounceFn = __webpack_require__(88);
+const dotProp = __webpack_require__(37);
+const makeDir = __webpack_require__(39);
+const pkgUp = __webpack_require__(40);
+const envPaths = __webpack_require__(47);
+const writeFileAtomic = __webpack_require__(49);
+const Ajv = __webpack_require__(55);
+const debounceFn = __webpack_require__(89);
 const semver = __webpack_require__(13);
-const onetime = __webpack_require__(89);
+const onetime = __webpack_require__(90);
 
 const plainObject = () => Object.create(null);
 const encryptionAlgorithm = 'aes-256-cbc';
@@ -15466,10 +15591,10 @@ class Conf {
 
 module.exports = Conf;
 
-/* WEBPACK VAR INJECTION */}.call(this, "/index.js", __webpack_require__(34)(module)))
+/* WEBPACK VAR INJECTION */}.call(this, "/index.js", __webpack_require__(35)(module)))
 
 /***/ }),
-/* 34 */
+/* 35 */
 /***/ (function(module, exports) {
 
 module.exports = function(module) {
@@ -15497,13 +15622,13 @@ module.exports = function(module) {
 
 
 /***/ }),
-/* 35 */,
-/* 36 */
+/* 36 */,
+/* 37 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-const isObj = __webpack_require__(37);
+const isObj = __webpack_require__(38);
 
 const disallowedKeys = [
 	'__proto__',
@@ -15647,7 +15772,7 @@ module.exports = {
 
 
 /***/ }),
-/* 37 */
+/* 38 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -15660,13 +15785,13 @@ module.exports = value => {
 
 
 /***/ }),
-/* 38 */
+/* 39 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 const fs = __webpack_require__(4);
-const path = __webpack_require__(1);
+const path = __webpack_require__(2);
 const {promisify} = __webpack_require__(12);
 const semver = __webpack_require__(13);
 
@@ -15823,25 +15948,25 @@ module.exports.sync = (input, options) => {
 
 
 /***/ }),
-/* 39 */
+/* 40 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-const findUp = __webpack_require__(40);
+const findUp = __webpack_require__(41);
 
 module.exports = async ({cwd} = {}) => findUp('package.json', {cwd});
 module.exports.sync = ({cwd} = {}) => findUp.sync('package.json', {cwd});
 
 
 /***/ }),
-/* 40 */
+/* 41 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-const path = __webpack_require__(1);
-const locatePath = __webpack_require__(41);
+const path = __webpack_require__(2);
+const locatePath = __webpack_require__(42);
 
 module.exports = (filename, opts = {}) => {
 	const startDir = path.resolve(opts.cwd || '');
@@ -15888,14 +16013,14 @@ module.exports.sync = (filename, opts = {}) => {
 
 
 /***/ }),
-/* 41 */
+/* 42 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-const path = __webpack_require__(1);
-const pathExists = __webpack_require__(42);
-const pLocate = __webpack_require__(43);
+const path = __webpack_require__(2);
+const pathExists = __webpack_require__(43);
+const pLocate = __webpack_require__(44);
 
 module.exports = (iterable, options) => {
 	options = Object.assign({
@@ -15919,7 +16044,7 @@ module.exports.sync = (iterable, options) => {
 
 
 /***/ }),
-/* 42 */
+/* 43 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -15943,12 +16068,12 @@ module.exports.sync = fp => {
 
 
 /***/ }),
-/* 43 */
+/* 44 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-const pLimit = __webpack_require__(44);
+const pLimit = __webpack_require__(45);
 
 class EndError extends Error {
 	constructor(value) {
@@ -15984,12 +16109,12 @@ module.exports = (iterable, tester, opts) => {
 
 
 /***/ }),
-/* 44 */
+/* 45 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-const pTry = __webpack_require__(45);
+const pTry = __webpack_require__(46);
 
 const pLimit = concurrency => {
 	if (!((Number.isInteger(concurrency) || concurrency === Infinity) && concurrency > 0)) {
@@ -16043,7 +16168,7 @@ module.exports.default = pLimit;
 
 
 /***/ }),
-/* 45 */
+/* 46 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -16059,13 +16184,13 @@ module.exports.default = pTry;
 
 
 /***/ }),
-/* 46 */
+/* 47 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-const path = __webpack_require__(1);
-const os = __webpack_require__(47);
+const path = __webpack_require__(2);
+const os = __webpack_require__(48);
 
 const homedir = os.homedir();
 const tmpdir = os.tmpdir();
@@ -16140,8 +16265,8 @@ module.exports.default = envPaths;
 
 
 /***/ }),
-/* 47 */,
-/* 48 */
+/* 48 */,
+/* 49 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -16152,11 +16277,11 @@ module.exports._getTmpname = getTmpname // for testing
 module.exports._cleanupOnExit = cleanupOnExit
 
 const fs = __webpack_require__(4)
-const MurmurHash3 = __webpack_require__(49)
-const onExit = __webpack_require__(50)
-const path = __webpack_require__(1)
+const MurmurHash3 = __webpack_require__(50)
+const onExit = __webpack_require__(51)
+const path = __webpack_require__(2)
 const isTypedArray = __webpack_require__(14)
-const typedArrayToBuffer = __webpack_require__(52)
+const typedArrayToBuffer = __webpack_require__(53)
 const { promisify } = __webpack_require__(12)
 const activeFiles = {}
 
@@ -16164,7 +16289,7 @@ const activeFiles = {}
 /* istanbul ignore next */
 const threadId = (function getId () {
   try {
-    const workerThreads = __webpack_require__(53)
+    const workerThreads = __webpack_require__(54)
 
     /// if we are in main thread, this is set to `0`
     return workerThreads.threadId
@@ -16408,7 +16533,7 @@ function writeFileSync (filename, data, options) {
 /* WEBPACK VAR INJECTION */}.call(this, "/index.js"))
 
 /***/ }),
-/* 49 */
+/* 50 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /**
@@ -16550,14 +16675,14 @@ function writeFileSync (filename, data, options) {
 
 
 /***/ }),
-/* 50 */
+/* 51 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // Note: since nyc uses this module to output coverage, any lines
 // that are in the direct sync flow of nyc's outputCoverage are
 // ignored, since we can never get coverage for them.
 var assert = __webpack_require__(10)
-var signals = __webpack_require__(51)
+var signals = __webpack_require__(52)
 var isWin = /^win/i.test(process.platform)
 
 var EE = __webpack_require__(11)
@@ -16719,7 +16844,7 @@ function processEmit (ev, arg) {
 
 
 /***/ }),
-/* 51 */
+/* 52 */
 /***/ (function(module, exports) {
 
 // This is not the set of all possible signals.
@@ -16778,7 +16903,7 @@ if (process.platform === 'linux') {
 
 
 /***/ }),
-/* 52 */
+/* 53 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /**
@@ -16809,21 +16934,21 @@ module.exports = function typedarrayToBuffer (arr) {
 
 
 /***/ }),
-/* 53 */,
-/* 54 */
+/* 54 */,
+/* 55 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var compileSchema = __webpack_require__(55)
+var compileSchema = __webpack_require__(56)
   , resolve = __webpack_require__(7)
-  , Cache = __webpack_require__(59)
+  , Cache = __webpack_require__(60)
   , SchemaObject = __webpack_require__(15)
   , stableStringify = __webpack_require__(16)
-  , formats = __webpack_require__(60)
-  , rules = __webpack_require__(61)
-  , $dataMetaSchema = __webpack_require__(82)
+  , formats = __webpack_require__(61)
+  , rules = __webpack_require__(62)
+  , $dataMetaSchema = __webpack_require__(83)
   , util = __webpack_require__(3);
 
 module.exports = Ajv;
@@ -16841,8 +16966,8 @@ Ajv.prototype.errorsText = errorsText;
 Ajv.prototype._addSchema = _addSchema;
 Ajv.prototype._compile = _compile;
 
-Ajv.prototype.compileAsync = __webpack_require__(83);
-var customKeyword = __webpack_require__(84);
+Ajv.prototype.compileAsync = __webpack_require__(84);
+var customKeyword = __webpack_require__(85);
 Ajv.prototype.addKeyword = customKeyword.add;
 Ajv.prototype.getKeyword = customKeyword.get;
 Ajv.prototype.removeKeyword = customKeyword.remove;
@@ -17257,7 +17382,7 @@ function addFormat(name, format) {
 function addDefaultMetaSchema(self) {
   var $dataSchema;
   if (self._opts.$data) {
-    $dataSchema = __webpack_require__(87);
+    $dataSchema = __webpack_require__(88);
     self.addMetaSchema($dataSchema, $dataSchema.$id, true);
   }
   if (self._opts.meta === false) return;
@@ -17323,7 +17448,7 @@ function noop() {}
 
 
 /***/ }),
-/* 55 */
+/* 56 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -17717,7 +17842,7 @@ function vars(arr, statement) {
 
 
 /***/ }),
-/* 56 */
+/* 57 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /** @license URI.js v4.2.1 (c) 2011 Gary Court. License: http://github.com/garycourt/uri-js */
@@ -19110,7 +19235,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 
 
 /***/ }),
-/* 57 */
+/* 58 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19137,7 +19262,7 @@ module.exports = function ucs2length(str) {
 
 
 /***/ }),
-/* 58 */
+/* 59 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19233,7 +19358,7 @@ function escapeJsonPtr(str) {
 
 
 /***/ }),
-/* 59 */
+/* 60 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19266,7 +19391,7 @@ Cache.prototype.clear = function Cache_clear() {
 
 
 /***/ }),
-/* 60 */
+/* 61 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19415,13 +19540,13 @@ function regex(str) {
 
 
 /***/ }),
-/* 61 */
+/* 62 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var ruleModules = __webpack_require__(62)
+var ruleModules = __webpack_require__(63)
   , toHash = __webpack_require__(3).toHash;
 
 module.exports = function rules() {
@@ -19488,7 +19613,7 @@ module.exports = function rules() {
 
 
 /***/ }),
-/* 62 */
+/* 63 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19496,17 +19621,17 @@ module.exports = function rules() {
 
 //all requires must be explicit because browserify won't work with dynamic requires
 module.exports = {
-  '$ref': __webpack_require__(63),
-  allOf: __webpack_require__(64),
-  anyOf: __webpack_require__(65),
-  '$comment': __webpack_require__(66),
-  const: __webpack_require__(67),
-  contains: __webpack_require__(68),
-  dependencies: __webpack_require__(69),
-  'enum': __webpack_require__(70),
-  format: __webpack_require__(71),
-  'if': __webpack_require__(72),
-  items: __webpack_require__(73),
+  '$ref': __webpack_require__(64),
+  allOf: __webpack_require__(65),
+  anyOf: __webpack_require__(66),
+  '$comment': __webpack_require__(67),
+  const: __webpack_require__(68),
+  contains: __webpack_require__(69),
+  dependencies: __webpack_require__(70),
+  'enum': __webpack_require__(71),
+  format: __webpack_require__(72),
+  'if': __webpack_require__(73),
+  items: __webpack_require__(74),
   maximum: __webpack_require__(18),
   minimum: __webpack_require__(18),
   maxItems: __webpack_require__(19),
@@ -19515,20 +19640,20 @@ module.exports = {
   minLength: __webpack_require__(20),
   maxProperties: __webpack_require__(21),
   minProperties: __webpack_require__(21),
-  multipleOf: __webpack_require__(74),
-  not: __webpack_require__(75),
-  oneOf: __webpack_require__(76),
-  pattern: __webpack_require__(77),
-  properties: __webpack_require__(78),
-  propertyNames: __webpack_require__(79),
-  required: __webpack_require__(80),
-  uniqueItems: __webpack_require__(81),
+  multipleOf: __webpack_require__(75),
+  not: __webpack_require__(76),
+  oneOf: __webpack_require__(77),
+  pattern: __webpack_require__(78),
+  properties: __webpack_require__(79),
+  propertyNames: __webpack_require__(80),
+  required: __webpack_require__(81),
+  uniqueItems: __webpack_require__(82),
   validate: __webpack_require__(17)
 };
 
 
 /***/ }),
-/* 63 */
+/* 64 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19659,7 +19784,7 @@ module.exports = function generate_ref(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 64 */
+/* 65 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19709,7 +19834,7 @@ module.exports = function generate_allOf(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 65 */
+/* 66 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19790,7 +19915,7 @@ module.exports = function generate_anyOf(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 66 */
+/* 67 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19811,7 +19936,7 @@ module.exports = function generate_comment(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 67 */
+/* 68 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19874,7 +19999,7 @@ module.exports = function generate_const(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 68 */
+/* 69 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -19963,7 +20088,7 @@ module.exports = function generate_contains(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 69 */
+/* 70 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20138,7 +20263,7 @@ module.exports = function generate_dependencies(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 70 */
+/* 71 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20211,7 +20336,7 @@ module.exports = function generate_enum(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 71 */
+/* 72 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20368,7 +20493,7 @@ module.exports = function generate_format(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 72 */
+/* 73 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20479,7 +20604,7 @@ module.exports = function generate_if(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 73 */
+/* 74 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20627,7 +20752,7 @@ module.exports = function generate_items(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 74 */
+/* 75 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20711,7 +20836,7 @@ module.exports = function generate_multipleOf(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 75 */
+/* 76 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20802,7 +20927,7 @@ module.exports = function generate_not(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 76 */
+/* 77 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20882,7 +21007,7 @@ module.exports = function generate_oneOf(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 77 */
+/* 78 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -20964,7 +21089,7 @@ module.exports = function generate_pattern(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 78 */
+/* 79 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -21301,7 +21426,7 @@ module.exports = function generate_properties(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 79 */
+/* 80 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -21390,7 +21515,7 @@ module.exports = function generate_propertyNames(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 80 */
+/* 81 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -21667,7 +21792,7 @@ module.exports = function generate_required(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 81 */
+/* 82 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -21760,7 +21885,7 @@ module.exports = function generate_uniqueItems(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 82 */
+/* 83 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -21816,7 +21941,7 @@ module.exports = function (metaSchema, keywordsJsonPointers) {
 
 
 /***/ }),
-/* 83 */
+/* 84 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -21913,15 +22038,15 @@ function compileAsync(schema, meta, callback) {
 
 
 /***/ }),
-/* 84 */
+/* 85 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
 var IDENTIFIER = /^[a-z_$][a-z0-9_$-]*$/i;
-var customRuleCode = __webpack_require__(85);
-var definitionSchema = __webpack_require__(86);
+var customRuleCode = __webpack_require__(86);
+var definitionSchema = __webpack_require__(87);
 
 module.exports = {
   add: addKeyword,
@@ -22066,7 +22191,7 @@ function validateKeyword(definition, throwError) {
 
 
 /***/ }),
-/* 85 */
+/* 86 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -22301,7 +22426,7 @@ module.exports = function generate_custom(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 86 */
+/* 87 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -22345,13 +22470,13 @@ module.exports = {
 
 
 /***/ }),
-/* 87 */
+/* 88 */
 /***/ (function(module) {
 
 module.exports = JSON.parse("{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"$id\":\"https://raw.githubusercontent.com/epoberezkin/ajv/master/lib/refs/data.json#\",\"description\":\"Meta-schema for $data reference (JSON Schema extension proposal)\",\"type\":\"object\",\"required\":[\"$data\"],\"properties\":{\"$data\":{\"type\":\"string\",\"anyOf\":[{\"format\":\"relative-json-pointer\"},{\"format\":\"json-pointer\"}]}},\"additionalProperties\":false}");
 
 /***/ }),
-/* 88 */
+/* 89 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -22401,7 +22526,7 @@ module.exports = (fn, options = {}) => {
 
 
 /***/ }),
-/* 89 */
+/* 90 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";

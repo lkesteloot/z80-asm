@@ -155,13 +155,6 @@
 /************************************************************************/
 /******/ ({
 
-/***/ 1:
-/***/ (function(module, exports) {
-
-module.exports = require("path");
-
-/***/ }),
-
 /***/ 10:
 /***/ (function(module, exports) {
 
@@ -183,19 +176,26 @@ module.exports = require("util");
 
 /***/ }),
 
+/***/ 2:
+/***/ (function(module, exports) {
+
+module.exports = require("path");
+
+/***/ }),
+
 /***/ 26:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 exports.__esModule = true;
-var Ide_1 = __webpack_require__(90);
+var Ide_1 = __webpack_require__(91);
 Ide_1.main();
 
 
 /***/ }),
 
-/***/ 35:
+/***/ 36:
 /***/ (function(module, exports) {
 
 module.exports = require("crypto");
@@ -209,7 +209,7 @@ module.exports = require("fs");
 
 /***/ }),
 
-/***/ 47:
+/***/ 48:
 /***/ (function(module, exports) {
 
 module.exports = require("os");
@@ -223,14 +223,14 @@ module.exports = require("electron");
 
 /***/ }),
 
-/***/ 53:
+/***/ 54:
 /***/ (function(module, exports) {
 
 module.exports = require("worker_threads");
 
 /***/ }),
 
-/***/ 90:
+/***/ 91:
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -241,7 +241,7 @@ __webpack_require__.r(__webpack_exports__);
 __webpack_require__.d(__webpack_exports__, "main", function() { return /* binding */ main; });
 
 // EXTERNAL MODULE: ./node_modules/codemirror/lib/codemirror.js
-var codemirror = __webpack_require__(2);
+var codemirror = __webpack_require__(1);
 var codemirror_default = /*#__PURE__*/__webpack_require__.n(codemirror);
 
 // EXTERNAL MODULE: ./src/assembler/Opcodes.ts
@@ -872,8 +872,11 @@ var closebrackets = __webpack_require__(30);
 // EXTERNAL MODULE: ./node_modules/codemirror/addon/hint/show-hint.js
 var show_hint = __webpack_require__(31);
 
+// EXTERNAL MODULE: ./node_modules/codemirror/addon/scroll/annotatescrollbar.js
+var annotatescrollbar = __webpack_require__(32);
+
 // EXTERNAL MODULE: ./node_modules/codemirror/mode/z80/z80.js
-var z80 = __webpack_require__(32);
+var z80 = __webpack_require__(33);
 
 // EXTERNAL MODULE: external "electron"
 var external_electron_ = __webpack_require__(5);
@@ -889,7 +892,7 @@ function initIpc(ide) {
 var external_fs_ = __webpack_require__(4);
 
 // EXTERNAL MODULE: external "path"
-var external_path_ = __webpack_require__(1);
+var external_path_ = __webpack_require__(2);
 
 // EXTERNAL MODULE: ./node_modules/electron-store/index.js
 var electron_store = __webpack_require__(25);
@@ -900,6 +903,7 @@ var electron_store_default = /*#__PURE__*/__webpack_require__.n(electron_store);
 
 
 // Load these for their side-effects (they register themselves).
+
 
 
 
@@ -974,6 +978,8 @@ class Ide_Ide {
             // This way a large re-assemble takes 40ms instead of 300ms.
             this.assembleAll();
         });
+        // The type definition doesn't include this extension.
+        this.scrollbarAnnotator = this.cm.annotateScrollbar("scrollbar-error");
         initIpc(this);
         this.cm.focus();
         // Read file from last time.
@@ -1047,6 +1053,7 @@ class Ide_Ide {
             }
         }
         // Update UI.
+        const annotationMarks = [];
         for (let lineNumber = 0; lineNumber < this.assembled.length; lineNumber++) {
             const results = this.assembled[lineNumber];
             let addressElement;
@@ -1078,10 +1085,15 @@ class Ide_Ide {
                 this.cm.removeLineClass(lineNumber, "background", "error-line");
             }
             else {
-                console.log(results.error);
+                // console.log(results.error);
                 this.cm.addLineClass(lineNumber, "background", "error-line");
+                annotationMarks.push({
+                    from: { line: lineNumber, ch: 0 },
+                    to: { line: lineNumber + 1, ch: 0 },
+                });
             }
         }
+        this.scrollbarAnnotator.update(annotationMarks);
         const after = Date.now();
         console.log("Assembly time: " + (after - before));
     }

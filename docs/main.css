@@ -24,3 +24,6 @@ body {
 .CodeMirror-linenumber {
     color: #585 !important;
 }
+.scrollbar-error {
+    background-color: #C00;
+}
