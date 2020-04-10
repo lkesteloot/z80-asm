@@ -878,14 +878,11 @@ var annotatescrollbar = __webpack_require__(32);
 // EXTERNAL MODULE: ./node_modules/codemirror/mode/z80/z80.js
 var z80 = __webpack_require__(33);
 
-// EXTERNAL MODULE: external "electron"
-var external_electron_ = __webpack_require__(5);
-
 // CONCATENATED MODULE: ./src/ide/ElectronIpc.ts
-
+const ipcRenderer = window.ipcRenderer;
 function initIpc(ide) {
-    external_electron_["ipcRenderer"].on("set-text", (event, pathname, text) => ide.setText(pathname, text));
-    external_electron_["ipcRenderer"].on("next-error", () => ide.nextError());
+    ipcRenderer.on("set-text", (event, pathname, text) => ide.setText(pathname, text));
+    ipcRenderer.on("next-error", () => ide.nextError());
 }
 
 // EXTERNAL MODULE: external "fs"
