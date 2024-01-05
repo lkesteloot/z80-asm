@@ -1,3 +1,5 @@
+This project has been moved to https://github.com/lkesteloot/trs80
+
 # z80-asm
 
 This is a Z80 assembler IDE written in TypeScript.
